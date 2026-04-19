@@ -74,7 +74,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = UserAuthService.get_by_email(db, form_data.username)
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
-    access_token = create_access_token(data={"sub": user.email})
+    # Obtener el rol del usuario
+    user_role = db.query(UserRole).filter_by(id_auth=user.id_user_auth).first()
+    role = None
+    if user_role:
+        role_obj = db.query(Role).filter_by(id_role=user_role.id_role).first()
+        if role_obj:
+            role = role_obj.name
+    access_token = create_access_token(data={"sub": user.email, "role": role})
     return {"access_token": access_token, "token_type": "bearer"}
 
 class RegisterRequest(BaseModel):
