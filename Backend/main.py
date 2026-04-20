@@ -20,9 +20,9 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["FRONTEND_URL"],  # Reemplaza con la URL de tu frontend
-    allow_credentials=True,
-    allow_methods=["POST", "GET", "PUT", "DELETE"],
+    allow_origins=["*"],  # Permite cualquier origen (Simulador, Web Local, Docker network)
+    allow_credentials=False, # Si usas cookies en lugar de JWT cambia esto a True y pon origenes especificos
+    allow_methods=["*"],  # Incluye OPTIONS esencial para la pre-solicitud (preflight)
     allow_headers=["*"],
 )
 
