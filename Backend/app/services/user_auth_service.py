@@ -22,30 +22,38 @@ class UserAuthService:
     @staticmethod
     def register_user(db: Session, data):
         from app.controllers.auth_controller import get_password_hash
-        hashed_password = get_password_hash(data.password)
-        user = UserAuth(
-            email=data.email,
-            password=hashed_password,
-            is_active=True,
-            auth_provider=data.auth_provider,
-            provider_id=data.provider_id
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            hashed_password = get_password_hash(data.password) if data.password else None
+            user = UserAuth(
+                email=data.email,
+                password=hashed_password,
+                is_active=True,
+                auth_provider=data.auth_provider,
+                provider_id=data.provider_id
+            )
+            db.add(user)
+            db.flush()
 
-        role = db.query(Role).filter_by(name="user").first()
-        if not role:
-            role = Role(name="user")
-            db.add(role)
+            role = db.query(Role).filter_by(name="driver").first()
+            if not role:
+                role = Role(name="driver")
+                db.add(role)
+                db.flush()
+
+            user_role = UserRole(id_auth=user.id_user_auth, id_role=role.id_role)
+            db.add(user_role)
+
+            user_profile = UserProfile(
+                id_auth=user.id_user_auth, 
+                first_name=data.first_name, 
+                last_name=data.last_name, 
+                phone=None
+            )
+            db.add(user_profile)
+
             db.commit()
-            db.refresh(role)
-
-        user_role = UserRole(id_auth=user.id_user_auth, id_role=role.id_role)
-        db.add(user_role)
-        db.commit()
-
-        user_profile = UserProfile(id_auth=user.id_user_auth, first_name="", last_name="", phone=None)
-        db.add(user_profile)
-        db.commit()
-        return user
+            db.refresh(user)
+            return user
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"Transaction failed: {str(e)}")

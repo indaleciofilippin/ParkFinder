@@ -86,27 +86,34 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
     auth_provider: str
+    password: Optional[str] = None
     provider_id: Optional[str] = None
-
-    @validator("password")
-    def password_min_length(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
+    first_name: str = ""
+    last_name: str = ""
 
     @validator("auth_provider")
     def provider_must_be_valid(cls, v):
-        allowed = {"local", "google"}
+        allowed = {"local", "google", "apple"}
         if v not in allowed:
-            raise ValueError("auth_provider must be 'local' or 'google'")
+            raise ValueError("auth_provider must be 'local', 'google', or 'apple'")
         if not (2 <= len(v) <= 50):
             raise ValueError("auth_provider length must be 2-50 chars")
         return v
 
+    @validator("password")
+    def password_val(cls, v, values):
+        provider = values.get("auth_provider")
+        if provider == "local":
+            if not v or len(v) < 8:
+                raise ValueError("Password must be at least 8 characters")
+        return v
+
     @validator("provider_id")
-    def provider_id_length(cls, v):
+    def provider_id_length(cls, v, values):
+        provider = values.get("auth_provider")
+        if provider in ["google", "apple"] and not v:
+            raise ValueError("provider_id is required for social login")
         if v is not None and not (2 <= len(v) <= 255):
             raise ValueError("provider_id length must be 2-255 chars")
         return v
@@ -115,5 +122,33 @@ class RegisterRequest(BaseModel):
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if UserAuthService.get_by_email(db, data.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    UserAuthService.register_user(db, data)
+    try:
+        UserAuthService.register_user(db, data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return {"msg": "User registered successfully"}
+
+class SocialLoginRequest(BaseModel):
+    email: EmailStr
+    auth_provider: str
+    provider_id: str
+
+@router.post("/social-login")
+def social_login(data: SocialLoginRequest, db: Session = Depends(get_db)):
+    user = UserAuthService.get_by_email(db, data.email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not registered")
+    
+    if user.auth_provider != data.auth_provider or user.provider_id != data.provider_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid social login credentials")
+        
+    # Obtener el rol del usuario
+    user_role = db.query(UserRole).filter_by(id_auth=user.id_user_auth).first()
+    role = None
+    if user_role:
+        role_obj = db.query(Role).filter_by(id_role=user_role.id_role).first()
+        if role_obj:
+            role = role_obj.name
+            
+    access_token = create_access_token(data={"sub": user.email, "role": role})
+    return {"access_token": access_token, "token_type": "bearer"}
