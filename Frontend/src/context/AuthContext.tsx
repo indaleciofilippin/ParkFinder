@@ -61,8 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const socialLogin = async (data: any) => {
+    console.log("🚀 Iniciando socialLogin para:", data.email);
     try {
       const response = await authApi.socialLogin(data);
+      console.log("✅ Respuesta del Backend recibida:", response.access_token ? "Token exist" : "No token");
+      
       if (response.access_token) {
         await saveToken('access_token', response.access_token);
         setToken(response.access_token);
@@ -71,8 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           first_name: data.first_name,
           last_name: data.last_name
         });
+        console.log("📱 Estado de Token actualizado en AuthContext");
       }
     } catch (error) {
+       console.error("❌ Error en socialLogin Context:", error);
        throw error;
     }
   };

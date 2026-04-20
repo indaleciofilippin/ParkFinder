@@ -21,5 +21,13 @@ export const es = {
   },
   social: {
     continue_with: "Continuar con %{provider}"
+  },
+  home: {
+    welcome_back: "Bienvenido de nuevo,",
+    parking_status: "Estado de Parking",
+    no_active_reservations: "No tienes reservas activas",
+    quick_actions: "Acciones Rápidas",
+    recent_activity: "Actividad Reciente",
+    no_activity: "No hay actividad para mostrar"
   }
 };

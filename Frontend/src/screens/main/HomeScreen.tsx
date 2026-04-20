@@ -38,8 +38,8 @@ export const HomeScreen = () => {
         >
           <View style={styles.heroContent}>
             <View>
-              <Text style={styles.heroTitle}>Estado de Parking</Text>
-              <Text style={styles.heroSubtitle}>No tienes reservas activas</Text>
+              <Text style={styles.heroTitle}>{i18n.t('home.parking_status')}</Text>
+              <Text style={styles.heroSubtitle}>{i18n.t('home.no_active_reservations')}</Text>
             </View>
             <View style={styles.heroIconContainer}>
               <Ionicons name="car-sport" size={40} color="white" />
@@ -52,7 +52,7 @@ export const HomeScreen = () => {
         </LinearGradient>
 
         {/* Quick Actions Grid */}
-        <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+        <Text style={styles.sectionTitle}>{i18n.t('home.quick_actions')}</Text>
         <View style={styles.grid}>
           <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" />
           <ActionCard icon="wallet-outline" title="Mi Billetera" color="#764ba2" />
@@ -61,10 +61,10 @@ export const HomeScreen = () => {
         </View>
 
         {/* Recent Activity (Placeholder) */}
-        <Text style={styles.sectionTitle}>Actividad Reciente</Text>
+        <Text style={styles.sectionTitle}>{i18n.t('home.recent_activity')}</Text>
         <View style={styles.emptyActivity}>
           <Ionicons name="notifications-off-outline" size={48} color={theme.colors.textSecondary} />
-          <Text style={styles.emptyText}>No hay actividad para mostrar</Text>
+          <Text style={styles.emptyText}>{i18n.t('home.no_activity')}</Text>
         </View>
 
       </ScrollView>

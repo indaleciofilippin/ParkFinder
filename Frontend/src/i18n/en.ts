@@ -21,5 +21,13 @@ export const en = {
   },
   social: {
     continue_with: "Continue with %{provider}"
+  },
+  home: {
+    welcome_back: "Welcome back,",
+    parking_status: "Parking Status",
+    no_active_reservations: "No active reservations",
+    quick_actions: "Quick Actions",
+    recent_activity: "Recent Activity",
+    no_activity: "No activity to show"
   }
 };

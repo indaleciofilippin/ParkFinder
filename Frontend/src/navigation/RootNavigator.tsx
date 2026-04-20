@@ -7,6 +7,8 @@ import { theme } from '../theme/theme';
 
 export const RootNavigator = () => {
   const { token, isLoading } = useAuth();
+  
+  console.log("🚦 [RootNavigator] Token actual:", token ? "EXISTE" : "NULO");
 
   if (isLoading) {
     return (
