@@ -1,0 +1,8 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+- Creating native directory (./ios)
+✔ Created native directory | reusing /ios
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+✔ Finished prebuild
