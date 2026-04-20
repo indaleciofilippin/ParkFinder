@@ -1,12 +1,56 @@
-import React from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { CustomInput } from '../../components/CustomInput';
 import { CustomButton } from '../../components/CustomButton';
 import { SocialButton } from '../../components/SocialButton';
 import { theme } from '../../theme/theme';
 import { i18n } from '../../i18n';
+import { useAuth } from '../../context/AuthContext';
 
 export const RegisterScreen = ({ navigation }: any) => {
+  const { register, socialLogin } = useAuth();
+  
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!fullName || !email || !password) {
+      Alert.alert('Error', 'Todos los campos son requeridos');
+      return;
+    }
+    
+    // Separar name
+    const parts = fullName.trim().split(' ');
+    const first_name = parts[0];
+    const last_name = parts.slice(1).join(' ') || '';
+
+    setIsLoading(true);
+    try {
+      await register({
+        email,
+        password,
+        auth_provider: 'local',
+        provider_id: null,
+        first_name,
+        last_name
+      });
+      Alert.alert('Éxito', 'Cuenta creada correctamente');
+      navigation.navigate('Login');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo crear la cuenta');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const dummySocialAuth = async (provider: string) => {
+     // AQUI IRIA LA LOGICA REAL DE EXPO AUTH SESSION
+     // Ej. const promptAsync() = Google...
+     Alert.alert('Social Auth', `Simulando inicio con ${provider}. Tienes que configurar las APIs correspondientes en dev clients.`);
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -24,23 +68,30 @@ export const RegisterScreen = ({ navigation }: any) => {
             iconName="person-outline" 
             placeholder={i18n.t('auth.full_name')}
             autoCapitalize="words"
+            value={fullName}
+            onChangeText={setFullName}
           />
           <CustomInput 
             iconName="mail-outline" 
             placeholder={i18n.t('auth.email')}
             keyboardType="email-address"
             autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
           />
           <CustomInput 
             iconName="lock-closed-outline" 
             placeholder={i18n.t('auth.password')}
             isPassword
+            value={password}
+            onChangeText={setPassword}
           />
           
           <CustomButton 
             title={i18n.t('auth.create_account')} 
-            onPress={() => {}} 
+            onPress={handleRegister} 
             style={styles.mainButton}
+            isLoading={isLoading}
           />
         </View>
 
@@ -51,8 +102,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.socialContainer}>
-          <SocialButton provider="google" onPress={() => {}} />
-          <SocialButton provider="apple" onPress={() => {}} />
+          <SocialButton provider="google" onPress={() => dummySocialAuth('google')} />
+          <SocialButton provider="apple" onPress={() => dummySocialAuth('apple')} />
         </View>
 
         <View style={styles.footer}>

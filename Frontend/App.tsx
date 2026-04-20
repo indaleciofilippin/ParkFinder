@@ -4,14 +4,18 @@ import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { RootNavigator } from './src/navigation/RootNavigator';
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <AuthNavigator />
-        {/* light status bar suits the dark theme */}
-        <StatusBar style="light" /> 
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+          {/* light status bar suits the dark theme */}
+          <StatusBar style="light" /> 
+        </NavigationContainer>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

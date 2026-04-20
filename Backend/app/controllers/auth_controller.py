@@ -47,6 +47,13 @@ def get_all_users(db: Session = Depends(get_db)):
     users = UserAuthService.get_all(db)
     return [UserAuthView.from_orm(u).dict() for u in users]
 
+@router.get("/db-info")
+def get_db_info():
+    db_url = os.getenv("DATABASE_URL", "NOT_FOUND")
+    # Ofuscar el password por seguridad
+    safe_url = db_url.split("@")[-1] if "@" in db_url else db_url
+    return {"active_db_host": safe_url}
+
 @router.get("/users/{user_id}")
 def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
     user = UserAuthService.get_by_id(db, user_id)
@@ -132,13 +139,30 @@ class SocialLoginRequest(BaseModel):
     email: EmailStr
     auth_provider: str
     provider_id: str
+    first_name: str = ""
+    last_name: str = ""
 
 @router.post("/social-login")
 def social_login(data: SocialLoginRequest, db: Session = Depends(get_db)):
     user = UserAuthService.get_by_email(db, data.email)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not registered")
     
+    # Auto-Registro: Si el email no está registrado, lo registramos dinámicamente con Google/Apple
+    if not user:
+        register_data = RegisterRequest(
+            email=data.email,
+            auth_provider=data.auth_provider,
+            password=None,
+            provider_id=data.provider_id,
+            first_name=data.first_name,
+            last_name=data.last_name
+        )
+        try:
+            UserAuthService.register_user(db, register_data)
+            user = UserAuthService.get_by_email(db, data.email)
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Auto-registration failed: {str(e)}")
+            
+    # Validamos que los IDs criptográficos correspondan
     if user.auth_provider != data.auth_provider or user.provider_id != data.provider_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid social login credentials")
         
