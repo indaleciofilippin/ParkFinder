@@ -1,5 +1,15 @@
 from fastapi import FastAPI
-from app.controllers import base_controller
+from fastapi.middleware.cors import CORSMiddleware
+from app.controllers.auth_controller import router as auth_router
+from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer
+from fastapi import Request, Depends, HTTPException, status
+import os
+from app.core.config import engine
+
+
+
+# Crear tablas automáticamente si no existen
 
 app = FastAPI(
     title="ParkFinder API",
@@ -7,8 +17,34 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["FRONTEND_URL"],  # Reemplaza con la URL de tu frontend
+    allow_credentials=True,
+    allow_methods=["POST", "GET", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+import os
+
+async def jwt_middleware(request: Request, token: str = Depends(oauth2_scheme)):
+    if request.url.path.startswith("/api/v1/auth/") or request.url.path.startswith("/api/v1/health") or request.url.path == "/":
+        return
+    try:
+        SECRET_KEY = os.getenv("SECRET_KEY")
+        ALGORITHM = os.getenv("ALGORITHM")
+        if not SECRET_KEY or not ALGORITHM:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="JWT config missing")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        request.state.user = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
 # Include routers here
-app.include_router(base_controller.router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():
