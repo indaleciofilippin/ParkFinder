@@ -10,7 +10,8 @@ export const es = {
     or_signup: "O REGÍSTRATE CON",
     create_account: "Crear Cuenta",
     join_community: "Únete a la comunidad ParkFinder",
-    full_name: "Nombre Completo",
+    first_name: "Nombre",
+    last_name: "Apellido",
     already_have_account: "¿Ya tienes una cuenta? ",
     no_account: "¿No tienes una cuenta? ",
     sign_up: "Regístrate",
@@ -20,7 +21,8 @@ export const es = {
     back_to_login: "Volver a Iniciar Sesión",
   },
   social: {
-    continue_with: "Continuar con %{provider}"
+    continue_with: "Continuar con %{provider}",
+    apple_soon: "Próximamente con Apple"
   },
   home: {
     welcome_back: "Bienvenido de nuevo,",
