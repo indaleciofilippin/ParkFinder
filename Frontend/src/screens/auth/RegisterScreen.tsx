@@ -6,26 +6,30 @@ import { SocialButton } from '../../components/SocialButton';
 import { theme } from '../../theme/theme';
 import { i18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
+import { useSocialAuth } from '../../hooks/useSocialAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
-  const { register, socialLogin } = useAuth();
+  const { register } = useAuth();
+  const { 
+    signInWithGoogle, 
+    signInWithApple, 
+    isGoogleLoading, 
+    isAppleLoading, 
+    isGoogleAvailable 
+  } = useSocialAuth();
   
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!fullName || !email || !password) {
+    if (!firstName || !lastName || !email || !password) {
       Alert.alert('Error', 'Todos los campos son requeridos');
       return;
     }
     
-    // Separar name
-    const parts = fullName.trim().split(' ');
-    const first_name = parts[0];
-    const last_name = parts.slice(1).join(' ') || '';
-
     setIsLoading(true);
     try {
       await register({
@@ -33,8 +37,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         password,
         auth_provider: 'local',
         provider_id: null,
-        first_name,
-        last_name
+        first_name: firstName.trim(),
+        last_name: lastName.trim()
       });
       Alert.alert('Éxito', 'Cuenta creada correctamente');
       navigation.navigate('Login');
@@ -43,12 +47,6 @@ export const RegisterScreen = ({ navigation }: any) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const dummySocialAuth = async (provider: string) => {
-     // AQUI IRIA LA LOGICA REAL DE EXPO AUTH SESSION
-     // Ej. const promptAsync() = Google...
-     Alert.alert('Social Auth', `Simulando inicio con ${provider}. Tienes que configurar las APIs correspondientes en dev clients.`);
   };
 
   return (
@@ -66,10 +64,17 @@ export const RegisterScreen = ({ navigation }: any) => {
         <View style={styles.form}>
           <CustomInput 
             iconName="person-outline" 
-            placeholder={i18n.t('auth.full_name')}
+            placeholder={i18n.t('auth.first_name')}
             autoCapitalize="words"
-            value={fullName}
-            onChangeText={setFullName}
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+          <CustomInput 
+            iconName="person-add-outline" 
+            placeholder={i18n.t('auth.last_name')}
+            autoCapitalize="words"
+            value={lastName}
+            onChangeText={setLastName}
           />
           <CustomInput 
             iconName="mail-outline" 
@@ -102,8 +107,18 @@ export const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.socialContainer}>
-          <SocialButton provider="google" onPress={() => dummySocialAuth('google')} />
-          <SocialButton provider="apple" onPress={() => dummySocialAuth('apple')} />
+          <SocialButton 
+            provider="google" 
+            onPress={signInWithGoogle} 
+            disabled={!isGoogleAvailable} 
+            isLoading={isGoogleLoading}
+          />
+          <SocialButton 
+            provider="apple" 
+            onPress={signInWithApple} 
+            disabled={true} 
+            isLoading={isAppleLoading}
+          />
         </View>
 
         <View style={styles.footer}>

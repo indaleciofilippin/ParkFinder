@@ -1,8 +1,4 @@
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { CustomInput } from '../../components/CustomInput';
 import { CustomButton } from '../../components/CustomButton';
@@ -10,85 +6,21 @@ import { SocialButton } from '../../components/SocialButton';
 import { theme } from '../../theme/theme';
 import { i18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
-
-// Permite a Expo cerrar el navegador interno cuando se completa el Auth
-WebBrowser.maybeCompleteAuthSession();
+import { useSocialAuth } from '../../hooks/useSocialAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
-  const { login, socialLogin } = useAuth();
+  const { login } = useAuth();
+  const { 
+    signInWithGoogle, 
+    signInWithApple, 
+    isGoogleLoading, 
+    isAppleLoading, 
+    isGoogleAvailable 
+  } = useSocialAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // === HOOKS GOOGLE AUTH ===
-  // Expo inyectará automáticamente los valores de tu archivo .env que comiencen con EXPO_PUBLIC_
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'unconfigured.apps.googleusercontent.com',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'unconfigured.apps.googleusercontent.com',
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'unconfigured.apps.googleusercontent.com',
-  });
-
-  useEffect(() => {
-    handleGoogleResponse();
-  }, [response]);
-
-  const handleGoogleResponse = async () => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      try {
-        // Traemos los datos de Google con el token nativo
-        const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-          headers: { Authorization: `Bearer ${authentication?.accessToken}` },
-        });
-        const googleUser = await userInfoResponse.json();
-        
-        // Enviamos al Backend para el cruce de datos y Login/Register
-        await socialLogin({
-          email: googleUser.email,
-          auth_provider: 'google',
-          provider_id: googleUser.id,
-          first_name: googleUser.given_name || '',
-          last_name: googleUser.family_name || ''
-        });
-        Alert.alert('¡Bienvenido!', 'Sesión iniciada con Google');
-      } catch (error: any) {
-        // IMPORTANTE: Si el usuario no existe en Postgres, mándalo a RegisterScreen o regístralo aquí.
-        Alert.alert('Error', 'No pudimos validar tu acceso');
-      }
-    }
-  };
-
-  // === HOOK APPLE AUTH ===
-  const handleAppleAuth = async () => {
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      // El nombre y correo solo vienen la PRIMERA VEZ que el usuario se loguea.
-      const first_name = credential.fullName?.givenName || 'Usuario';
-      const last_name = credential.fullName?.familyName || 'Apple';
-      const apple_email = credential.email || `${credential.user}@apple.id`;
-
-      await socialLogin({
-        email: apple_email,
-        auth_provider: 'apple',
-        provider_id: credential.user, // ID único criptográfico de Apple
-        first_name,
-        last_name
-      });
-      Alert.alert('¡Bienvenido!', 'Sesión iniciada con Apple');
-    } catch (e: any) {
-      if (e.code === 'ERR_CANCELED') {
-        // Usuario cerró el modal
-      } else {
-        Alert.alert('Error', 'Fallo en iniciar sesión con Apple');
-      }
-    }
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -161,8 +93,18 @@ export const LoginScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.socialContainer}>
-          <SocialButton provider="google" onPress={() => promptAsync()} disabled={!request} />
-          <SocialButton provider="apple" onPress={handleAppleAuth} />
+          <SocialButton 
+            provider="google" 
+            onPress={signInWithGoogle} 
+            disabled={!isGoogleAvailable} 
+            isLoading={isGoogleLoading}
+          />
+          <SocialButton 
+            provider="apple" 
+            onPress={signInWithApple} 
+            disabled={true} 
+            isLoading={isAppleLoading}
+          />
         </View>
 
         <View style={styles.footer}>
