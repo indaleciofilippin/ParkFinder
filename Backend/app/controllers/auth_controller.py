@@ -37,6 +37,7 @@ class UserAuthView(BaseModel):
     is_active: bool
     auth_provider: str
     provider_id: Optional[str] = None
+    role: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -45,7 +46,16 @@ class UserAuthView(BaseModel):
 @router.get("/users")
 def get_all_users(db: Session = Depends(get_db)):
     users = UserAuthService.get_all(db)
-    return [UserAuthView.from_orm(u).dict() for u in users]
+    result = []
+    for u in users:
+        user_dict = UserAuthView.from_orm(u).dict()
+        # Obtener el rol
+        user_role = db.query(UserRole).filter_by(id_auth=u.id_user_auth).first()
+        if user_role:
+            role_obj = db.query(Role).filter_by(id_role=user_role.id_role).first()
+            user_dict["role"] = role_obj.name if role_obj else None
+        result.append(user_dict)
+    return result
 
 @router.get("/db-info")
 def get_db_info():
@@ -59,7 +69,13 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
     user = UserAuthService.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserAuthView.from_orm(user).dict()
+    user_dict = UserAuthView.from_orm(user).dict()
+    # Obtener el rol
+    user_role = db.query(UserRole).filter_by(id_auth=user.id_user_auth).first()
+    if user_role:
+        role_obj = db.query(Role).filter_by(id_role=user_role.id_role).first()
+        user_dict["role"] = role_obj.name if role_obj else None
+    return user_dict
 
 
 
@@ -89,11 +105,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         if role_obj:
             role = role_obj.name
     access_token = create_access_token(data={"sub": user.email, "role": role})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role": role}
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     auth_provider: str
+    role: str
     password: Optional[str] = None
     provider_id: Optional[str] = None
     first_name: str = ""
@@ -106,6 +123,12 @@ class RegisterRequest(BaseModel):
             raise ValueError("auth_provider must be 'local', 'google', or 'apple'")
         if not (2 <= len(v) <= 50):
             raise ValueError("auth_provider length must be 2-50 chars")
+        return v
+
+    @validator("role")
+    def role_length(cls, v):
+        if not (1 <= len(v) <= 10):
+            raise ValueError("role length must be 1-10 chars")
         return v
 
     @validator("password")
@@ -133,14 +156,21 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         UserAuthService.register_user(db, data)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return {"msg": "User registered successfully"}
+    return {"msg": "User registered successfully", "role": data.role}
 
 class SocialLoginRequest(BaseModel):
     email: EmailStr
     auth_provider: str
+    role: str
     provider_id: str
     first_name: str = ""
     last_name: str = ""
+
+    @validator("role")
+    def role_length(cls, v):
+        if not (1 <= len(v) <= 10):
+            raise ValueError("role length must be 1-10 chars")
+        return v
 
 @router.post("/social-login")
 def social_login(data: SocialLoginRequest, db: Session = Depends(get_db)):
@@ -151,6 +181,7 @@ def social_login(data: SocialLoginRequest, db: Session = Depends(get_db)):
         register_data = RegisterRequest(
             email=data.email,
             auth_provider=data.auth_provider,
+            role=data.role,
             password=None,
             provider_id=data.provider_id,
             first_name=data.first_name,
@@ -175,4 +206,4 @@ def social_login(data: SocialLoginRequest, db: Session = Depends(get_db)):
             role = role_obj.name
             
     access_token = create_access_token(data={"sub": user.email, "role": role})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role": role}

@@ -34,9 +34,9 @@ class UserAuthService:
             db.add(user)
             db.flush()
 
-            role = db.query(Role).filter_by(name="driver").first()
+            role = db.query(Role).filter_by(name=data.role).first()
             if not role:
-                role = Role(name="driver")
+                role = Role(name=data.role)
                 db.add(role)
                 db.flush()
 
