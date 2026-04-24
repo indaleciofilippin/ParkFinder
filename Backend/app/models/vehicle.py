@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey, String, Boolean
 from .base_model import BaseModel
 
 class Vehicle(BaseModel):
