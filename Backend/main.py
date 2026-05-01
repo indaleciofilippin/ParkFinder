@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.vehicle_controller import router as vehicle_router
+from app.controllers.parking_controller import router as parking_router
 from fastapi import Request, Depends, HTTPException, status
 from app.core.security import get_current_user, oauth2_scheme
 import os
@@ -37,6 +38,7 @@ async def jwt_middleware(request: Request, token: str = Depends(oauth2_scheme)):
 # Include routers here
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(vehicle_router, prefix="/api/v1", dependencies=[Depends(jwt_middleware)])
+app.include_router(parking_router, prefix="/api/v1", dependencies=[Depends(jwt_middleware)])
 
 @app.get("/")
 def read_root():

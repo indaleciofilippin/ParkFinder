@@ -94,16 +94,154 @@ export const authApi = {
 
     if (!response.ok) {
         const respError = await response.json().catch(() => ({}));
-        throw new Error(respError.detail || 'Error en el login social');
+        const errorMessage = typeof respError.detail === 'object' 
+          ? JSON.stringify(respError.detail) 
+          : respError.detail;
+        throw new Error(errorMessage || 'Error en el login social');
     }
     return response.json();
   },
 
-  // Ejemplo de ruta protegida (Get Users)
-  getUsers: async () => {
+};
+
+export const userApi = {
+  getMe: async () => {
+    const response = await authenticatedFetch('/auth/me');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el perfil');
+    }
+    return response.json();
+  },
+
+  updateProfile: async (userId: number, data: any) => {
+    const response = await authenticatedFetch(`/auth/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar el perfil');
+    }
+    return response.json();
+  }
+};
+
+export const vehicleApi = {
+  getVehicles: async () => {
+    const response = await authenticatedFetch('/vehicles/');
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener los vehículos');
+    }
+    return response.json();
+  },
+
+  createVehicle: async (data: { license_plate: string; model: string }) => {
+    const response = await authenticatedFetch('/vehicles/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al registrar el vehículo');
+    }
+    return response.json();
+  },
+
+  updateVehicle: async (id: number, data: any) => {
+    const response = await authenticatedFetch(`/vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar el vehículo');
+    }
+    return response.json();
+  },
+
+  deleteVehicle: async (id: number) => {
+    const response = await authenticatedFetch(`/vehicles/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error al eliminar el vehículo');
+    }
+    return response.json();
+  }
+};
+
+export const parkingApi = {
+  getParkings: async () => {
+    const response = await authenticatedFetch('/parkings/');
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las cocheras');
+    }
+    return response.json();
+  },
+
+  createParking: async (data: { name: string; base_hourly_rate: number }) => {
+    const response = await authenticatedFetch('/parkings/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al registrar la cochera');
+    }
+    return response.json();
+  },
+
+  updateParking: async (id: number, data: any) => {
+    const response = await authenticatedFetch(`/parkings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar la cochera');
+    }
+    return response.json();
+  },
+
+  deleteParking: async (id: number) => {
+    const response = await authenticatedFetch(`/parkings/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error al eliminar la cochera');
+    }
+    return response.json();
+  }
+};
+
+export const adminApi = {
+  getAllUsers: async () => {
     const response = await authenticatedFetch('/auth/users');
     if (!response.ok) {
       throw new Error('No se pudieron obtener los usuarios');
+    }
+    return response.json();
+  },
+
+  updateUser: async (userId: number, data: any) => {
+    const response = await authenticatedFetch(`/auth/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar el usuario');
+    }
+    return response.json();
+  },
+
+  deleteUser: async (userId: number) => {
+    const response = await authenticatedFetch(`/auth/users/${userId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al eliminar el usuario');
     }
     return response.json();
   }

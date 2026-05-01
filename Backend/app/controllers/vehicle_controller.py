@@ -43,8 +43,8 @@ def get_current_profile(current_user: dict = Depends(get_current_user)):
 def verify_driver_role(current_user: dict = Depends(get_current_user)):
     role = current_user.get("role")
     id_profile = current_user.get("id_profile")
-    if role != "driver":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only drivers can perform this action")
+    if role not in ["driver", "dev", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to manage vehicles")
     if id_profile is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Profile ID not found in token")
     return id_profile

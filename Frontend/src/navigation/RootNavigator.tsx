@@ -3,12 +3,13 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { AuthNavigator } from './AuthNavigator';
 import { AppNavigator } from './AppNavigator';
+import { RoleSelectionScreen } from '../screens/auth/RoleSelectionScreen';
 import { theme } from '../theme/theme';
 
 export const RootNavigator = () => {
-  const { token, isLoading } = useAuth();
+  const { user, token, isLoading } = useAuth();
   
-  console.log("🚦 [RootNavigator] Token actual:", token ? "EXISTE" : "NULO");
+  console.log("🚦 [RootNavigator] Token actual:", token ? "EXISTE" : "NULO", "| Rol:", user?.role);
 
   if (isLoading) {
     return (
@@ -18,7 +19,14 @@ export const RootNavigator = () => {
     );
   }
 
-  return token ? <AppNavigator /> : <AuthNavigator />;
+  if (token) {
+    if (user?.role === 'pending') {
+      return <RoleSelectionScreen />;
+    }
+    return <AppNavigator />;
+  }
+
+  return <AuthNavigator />;
 };
 
 const styles = StyleSheet.create({

@@ -116,6 +116,27 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db), current_user: di
         
     return user_dict
 
+@router.get("/me")
+def get_me(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    email = current_user.get("sub")
+    user = UserAuthService.get_by_email(db, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_dict = UserAuthView.from_orm(user).dict()
+    # Obtener el rol
+    user_role = db.query(UserRole).filter_by(id_auth=user.id_user_auth).first()
+    if user_role:
+        role_obj = db.query(Role).filter_by(id_role=user_role.id_role).first()
+        user_dict["role"] = role_obj.name if role_obj else None
+    
+    # Obtener el perfil
+    profile = db.query(UserProfile).filter_by(id_auth=user.id_user_auth).first()
+    if profile:
+        user_dict["profile"] = UserProfileView.from_orm(profile).dict()
+        
+    return user_dict
+
 @router.put("/users/{user_id}")
 def update_user(
     user_id: int, 
@@ -139,6 +160,16 @@ def update_user(
         if profile:
             user_dict["profile"] = UserProfileView.from_orm(profile).dict()
             
+        # Generar nuevo token si el usuario se está actualizando a sí mismo
+        if current_user.get("sub") == user.email:
+            from app.core.security import create_access_token
+            new_token = create_access_token(data={
+                "sub": user.email, 
+                "role": role_obj.name if role_obj else None, 
+                "id_profile": profile.id_profile if profile else None
+            })
+            user_dict["access_token"] = new_token
+
         return user_dict
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -25,7 +25,7 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
       return <ActivityIndicator color={spinnerColor} size="small" />;
     }
     
-    let textStyle = styles.primaryText;
+    let textStyle: any = styles.primaryText;
     if (variant === 'outlined') textStyle = styles.outlinedText;
     if (variant === 'text') textStyle = styles.textBtn;
     
