@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { CustomInput } from '../../components/CustomInput';
 import { CustomButton } from '../../components/CustomButton';
 import { SocialButton } from '../../components/SocialButton';
@@ -10,6 +10,14 @@ import { useSocialAuth } from '../../hooks/useSocialAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const { register } = useAuth();
+  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   const { 
     signInWithGoogle, 
     signInWithApple, 
@@ -17,16 +25,15 @@ export const RegisterScreen = ({ navigation }: any) => {
     isAppleLoading, 
     isGoogleAvailable 
   } = useSocialAuth();
-  
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Todos los campos son requeridos');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
     
@@ -36,11 +43,12 @@ export const RegisterScreen = ({ navigation }: any) => {
         email,
         password,
         auth_provider: 'local',
+        role: 'pending',
         provider_id: null,
         first_name: firstName.trim(),
         last_name: lastName.trim()
       });
-      Alert.alert('Éxito', 'Cuenta creada correctamente');
+      Alert.alert('Éxito', 'Cuenta creada correctamente. Inicia sesión para continuar.');
       navigation.navigate('Login');
     } catch (e: any) {
       Alert.alert('Error', e.message || 'No se pudo crear la cuenta');
@@ -90,6 +98,13 @@ export const RegisterScreen = ({ navigation }: any) => {
             isPassword
             value={password}
             onChangeText={setPassword}
+          />
+          <CustomInput 
+            iconName="shield-checkmark-outline" 
+            placeholder={i18n.t('auth.confirm_password')}
+            isPassword
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
           />
           
           <CustomButton 

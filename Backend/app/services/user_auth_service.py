@@ -34,9 +34,9 @@ class UserAuthService:
             db.add(user)
             db.flush()
 
-            role = db.query(Role).filter_by(name="driver").first()
+            role = db.query(Role).filter_by(name=data.role).first()
             if not role:
-                role = Role(name="driver")
+                role = Role(name=data.role)
                 db.add(role)
                 db.flush()
 
@@ -57,3 +57,69 @@ class UserAuthService:
         except Exception as e:
             db.rollback()
             raise ValueError(f"Transaction failed: {str(e)}")
+
+    @staticmethod
+    def update_user(db: Session, user_id: int, data):
+        from app.controllers.auth_controller import get_password_hash
+        user = db.query(UserAuth).filter(UserAuth.id_user_auth == user_id).first()
+        if not user:
+            return None
+        
+        try:
+            if hasattr(data, 'email') and data.email:
+                user.email = data.email
+            if hasattr(data, 'is_active') and data.is_active is not None:
+                user.is_active = data.is_active
+            if hasattr(data, 'password') and data.password:
+                user.password = get_password_hash(data.password)
+            
+            # Actualizar Perfil
+            profile = db.query(UserProfile).filter_by(id_auth=user_id).first()
+            if profile:
+                # Extraer datos de la raíz o del objeto 'profile' si existe
+                f_name = data.first_name
+                l_name = data.last_name
+                phone = data.phone
+                
+                if data.profile:
+                    if data.profile.first_name: f_name = data.profile.first_name
+                    if data.profile.last_name: l_name = data.profile.last_name
+                    if data.profile.phone: phone = data.profile.phone
+
+                if f_name is not None:
+                    profile.first_name = f_name
+                if l_name is not None:
+                    profile.last_name = l_name
+                if phone is not None:
+                    profile.phone = phone
+            
+            # Actualizar Rol si es necesario
+            if hasattr(data, 'role') and data.role:
+                role = db.query(Role).filter_by(name=data.role).first()
+                if not role:
+                    role = Role(name=data.role)
+                    db.add(role)
+                    db.flush()
+                
+                user_role = db.query(UserRole).filter_by(id_auth=user_id).first()
+                if user_role:
+                    user_role.id_role = role.id_role
+                else:
+                    db.add(UserRole(id_auth=user_id, id_role=role.id_role))
+
+            db.commit()
+            db.refresh(user)
+            return user
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"Update failed: {str(e)}")
+
+    @staticmethod
+    def delete_user(db: Session, user_id: int):
+        user = db.query(UserAuth).filter(UserAuth.id_user_auth == user_id).first()
+        if not user:
+            return None
+        
+        user.is_active = False
+        db.commit()
+        return user

@@ -8,11 +8,11 @@ import { i18n } from '../../i18n';
 
 const { width } = Dimensions.get('window');
 
-export const HomeScreen = () => {
-  const { user, logout } = useAuth();
+export const HomeScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   
   // Extraer nombre real o del email
-  const displayName = user?.first_name || (user?.email ? user.email.split('@')[0] : 'Usuario');
+  const displayName = user?.profile?.first_name || (user?.email ? user.email.split('@')[0] : 'Usuario');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -24,8 +24,11 @@ export const HomeScreen = () => {
             <Text style={styles.welcomeText}>{i18n.t('home.welcome_back') || 'Bienvenido de nuevo,'}</Text>
             <Text style={styles.nameText}>{displayName}</Text>
           </View>
-          <TouchableOpacity style={styles.profileButton} onPress={logout}>
-            <Ionicons name="log-out-outline" size={24} color={theme.colors.text} />
+          <TouchableOpacity 
+            style={styles.profileButton} 
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Ionicons name="person-outline" size={24} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -57,7 +60,20 @@ export const HomeScreen = () => {
           <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" />
           <ActionCard icon="wallet-outline" title="Mi Billetera" color="#764ba2" />
           <ActionCard icon="time-outline" title="Historial" color="#f093fb" />
-          <ActionCard icon="settings-outline" title="Ajustes" color="#f5576c" />
+          <ActionCard 
+            icon="person-outline" 
+            title={i18n.t('profile.title')} 
+            color="#f5576c" 
+            onPress={() => navigation.navigate('Profile')}
+          />
+          {(user?.role === 'admin' || user?.role === 'dev') && (
+            <ActionCard 
+              icon="shield-outline" 
+              title={i18n.t('dashboard.title')} 
+              color="#FFD700" 
+              onPress={() => navigation.navigate('AdminDashboard')}
+            />
+          )}
         </View>
 
         {/* Recent Activity (Placeholder) */}
@@ -72,8 +88,8 @@ export const HomeScreen = () => {
   );
 };
 
-const ActionCard = ({ icon, title, color }: { icon: any, title: string, color: string }) => (
-  <TouchableOpacity style={styles.card}>
+const ActionCard = ({ icon, title, color, onPress }: { icon: any, title: string, color: string, onPress?: () => void }) => (
+  <TouchableOpacity style={styles.card} onPress={onPress}>
     <View style={[styles.cardIconContainer, { backgroundColor: color + '20' }]}>
       <Ionicons name={icon} size={28} color={color} />
     </View>

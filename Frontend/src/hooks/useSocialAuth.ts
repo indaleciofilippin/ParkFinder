@@ -38,12 +38,12 @@ export const useSocialAuth = () => {
       await socialLogin({
         email: googleUser.email,
         auth_provider: 'google',
+        role: 'pending',
         provider_id: googleUser.id,
         first_name: googleUser.given_name || '',
         last_name: googleUser.family_name || ''
       });
       
-      Alert.alert('¡Bienvenido!', 'Sesión iniciada con Google');
     } catch (error: any) {
       console.error('Error Google Login:', error);
       Alert.alert('Error', 'No pudimos validar tu acceso con Google');
@@ -78,12 +78,12 @@ export const useSocialAuth = () => {
       await socialLogin({
         email: apple_email,
         auth_provider: 'apple',
+        role: 'pending',
         provider_id: credential.user,
         first_name,
         last_name
       });
       
-      Alert.alert('¡Bienvenido!', 'Sesión iniciada con Apple');
     } catch (e: any) {
       if (e.code !== 'ERR_CANCELED') {
         console.error('Error Apple Login:', e);

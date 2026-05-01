@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi, saveToken, getToken, removeToken } from '../services/api';
+import { authApi, userApi, saveToken, getToken, removeToken } from '../services/api';
 
 interface AuthContextData {
   user: any;
@@ -9,6 +9,7 @@ interface AuthContextData {
   register: (data: any) => Promise<void>;
   socialLogin: (data: any) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: (user: any) => void;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -21,18 +22,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Verificar token guardado al iniciar la app
     const bootstrapAsync = async () => {
-      let userToken;
       try {
-        userToken = await getToken('access_token');
+        const userToken = await getToken('access_token');
         if (userToken) {
-          // Aquí podríamos decodificar el JWT o llamar a un endpoint /me para traer datos
           setToken(userToken);
-          setUser({ email: 'user@placeholder.com' }); // Simificado para demo
+          // Traer datos reales del perfil
+          const userData = await userApi.getMe();
+          setUser(userData);
         }
       } catch (e) {
-        console.error('Error restaurando el token:', e);
+        console.error('Error restaurando el token o perfil:', e);
+        // Si el token es inválido, limpiar
+        await removeToken('access_token');
+        setToken(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     bootstrapAsync();
@@ -43,8 +48,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authApi.login({ email, password });
       if (response.access_token) {
         await saveToken('access_token', response.access_token);
+        
+        // Obtener perfil completo tras login exitoso ANTES de setear el token
+        // Esto evita que la pantalla parpadee hacia Home antes de saber el rol
+        const userData = await userApi.getMe();
+        setUser(userData);
         setToken(response.access_token);
-        setUser({ email }); // Se podría extraer más del JWT si tuviera claims
       }
     } catch (error) {
       throw error;
@@ -54,27 +63,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (data: any) => {
     try {
       await authApi.register(data);
-      // Tras registrar, usualmente autologueas o lo mandas al login
     } catch (error) {
       throw error;
     }
   };
 
   const socialLogin = async (data: any) => {
-    console.log("🚀 Iniciando socialLogin para:", data.email);
     try {
       const response = await authApi.socialLogin(data);
-      console.log("✅ Respuesta del Backend recibida:", response.access_token ? "Token exist" : "No token");
-      
       if (response.access_token) {
         await saveToken('access_token', response.access_token);
+        
+        // Obtener perfil completo ANTES de setear el token
+        const userData = await userApi.getMe();
+        setUser(userData);
         setToken(response.access_token);
-        setUser({ 
-          email: data.email,
-          first_name: data.first_name,
-          last_name: data.last_name
-        });
-        console.log("📱 Estado de Token actualizado en AuthContext");
       }
     } catch (error) {
        console.error("❌ Error en socialLogin Context:", error);
@@ -89,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, socialLogin, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, socialLogin, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
