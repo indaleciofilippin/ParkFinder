@@ -3,6 +3,8 @@ from app.core.security import get_current_user
 from sqlalchemy.orm import Session
 from app.core.config import SessionLocal
 from app.services.parking_service import ParkingService
+from app.services.space_category_service import SpaceCategoryService
+from app.models.parking import Parking
 from app.views.base_view import BaseModel
 from typing import List, Optional
 from decimal import Decimal
@@ -113,3 +115,23 @@ def delete_parking(
     if not deleted:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
     return {"msg": "Parking deleted successfully"}
+
+@router.get("/{id_parking}/availability")
+def get_parking_availability(
+    id_parking: int,
+    db: Session = Depends(get_db)
+):
+    availability = SpaceCategoryService.get_parking_availability(db, id_parking)
+    if not availability["categories"] and not ParkingService.get_parking_by_id(db, id_parking):
+        raise HTTPException(status_code=404, detail="Parking not found")
+    return availability
+
+@router.get("/availability/all")
+def get_all_parkings_availability(
+    db: Session = Depends(get_db)
+):
+    parkings = db.query(Parking).filter(Parking.is_active == True).all()
+    results = []
+    for p in parkings:
+        results.append(SpaceCategoryService.get_parking_availability(db, p.id_parking))
+    return results

@@ -9,3 +9,4 @@ class Parking(BaseModel):
     name = Column(String(100), nullable=False)
     base_hourly_rate = Column(Numeric(10,2), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
+    
