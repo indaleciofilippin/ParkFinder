@@ -62,7 +62,7 @@ def get_categories(
     id_parking: int,
     db: Session = Depends(get_db)
 ):
-    # Cualquiera puede ver las categorías (para saber precios/capacidades)
+    # Devuelve las categorías configuradas del estacionamiento (precios/capacidades)
     return SpaceCategoryService.get_categories_by_parking(db, id_parking)
 
 @router.put("/{id_category}", response_model=CategoryResponse)
