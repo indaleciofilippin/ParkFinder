@@ -94,7 +94,7 @@ class BookingService:
 
         except Exception as e:
             db.rollback()
-            raise e
+            raise
 
     @staticmethod
     def get_user_bookings(db: Session, id_profile: int) -> List[Booking]:
