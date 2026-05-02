@@ -89,6 +89,17 @@ def delete_category(
     id_profile: int = Depends(verify_park_role)
 ):
     check_parking_ownership(id_parking, id_profile, db)
+    category_in_parking = next(
+        (
+            category
+            for category in SpaceCategoryService.get_categories_by_parking(db, id_parking)
+            if category.id_category == id_category
+        ),
+        None,
+    )
+    if not category_in_parking:
+        raise HTTPException(status_code=404, detail="Category not found")
+
     deleted = SpaceCategoryService.delete_category(db, id_category)
     if not deleted:
         raise HTTPException(status_code=404, detail="Category not found")
