@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, TIMESTAMP
 from .base_model import BaseModel
 from sqlalchemy.sql import func 
 class AccessLog(BaseModel):

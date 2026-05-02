@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey
 from .base_model import BaseModel
 
 class Invoice(BaseModel):
