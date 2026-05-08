@@ -37,6 +37,23 @@ class ParkingResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class CategoryMonitoring(BaseModel):
+    id_category: int
+    name: str
+    max_capacity: int
+    active_occupancy: int
+    pending_reservations: int
+    available_spaces: int
+
+class MonitoringResponse(BaseModel):
+    id_parking: int
+    timestamp: str
+    total_capacity: int
+    total_active: int
+    total_pending: int
+    total_available: int
+    categories: List[CategoryMonitoring]
+
 def get_current_profile(current_user: dict = Depends(get_current_user)):
     id_profile = current_user.get("id_profile")
     if id_profile is None:
@@ -135,3 +152,16 @@ def get_all_parkings_availability(
     for p in parkings:
         results.append(SpaceCategoryService.get_parking_availability(db, p.id_parking))
     return results
+
+@router.get("/{id_parking}/monitoring", response_model=MonitoringResponse)
+def get_parking_monitoring(
+    id_parking: int,
+    db: Session = Depends(get_db),
+    id_profile: int = Depends(verify_park_role)
+):
+    # Verify ownership
+    db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+    if not db_parking:
+        raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
+
+    return SpaceCategoryService.get_monitoring_data(db, id_parking)
