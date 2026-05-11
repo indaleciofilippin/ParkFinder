@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -45,24 +46,16 @@ export const ProfileScreen = ({ navigation }: any) => {
   const [newModel, setNewModel] = useState('');
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
 
-  // Parkings state
-  const [parkings, setParkings] = useState<any[]>([]);
-  const [newParkingName, setNewParkingName] = useState('');
-  const [newParkingRate, setNewParkingRate] = useState('');
-  const [isAddingParking, setIsAddingParking] = useState(false);
-  const [parkingsLoading, setParkingsLoading] = useState(false);
-
   const canManageVehicles = user?.role === 'driver' || user?.role === 'dev' || user?.role === 'admin';
-  const canManageParkings = user?.role === 'park' || user?.role === 'dev' || user?.role === 'admin';
 
-  useEffect(() => {
-    if (canManageVehicles) {
-      fetchVehicles();
-    }
-    if (canManageParkings) {
-      fetchParkings();
-    }
-  }, [canManageVehicles, canManageParkings]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (canManageVehicles) {
+        fetchVehicles();
+      }
+    }, [canManageVehicles])
+  );
 
   const fetchVehicles = async () => {
     setVehiclesLoading(true);
@@ -76,17 +69,7 @@ export const ProfileScreen = ({ navigation }: any) => {
     }
   };
 
-  const fetchParkings = async () => {
-    setParkingsLoading(true);
-    try {
-      const data = await parkingApi.getParkings();
-      setParkings(data);
-    } catch (error) {
-      console.error('Error fetching parkings:', error);
-    } finally {
-      setParkingsLoading(false);
-    }
-  };
+
 
 
   const handleUpdateProfile = async () => {
@@ -167,58 +150,8 @@ export const ProfileScreen = ({ navigation }: any) => {
     setIsAddingVehicle(!isAddingVehicle);
   };
 
-  const handleAddParking = async () => {
-    if (!newParkingName || !newParkingRate) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
-      return;
-    }
 
-    setParkingsLoading(true);
-    try {
-      await parkingApi.createParking({
-        name: newParkingName.trim(),
-        base_hourly_rate: parseFloat(newParkingRate),
-      });
-      setNewParkingName('');
-      setNewParkingRate('');
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsAddingParking(false);
-      fetchParkings();
-      Alert.alert(i18n.t('parkings.title'), i18n.t('parkings.success_add'));
-    } catch (error: any) {
-      Alert.alert('Error', error.message || i18n.t('parkings.error_add'));
-    } finally {
-      setParkingsLoading(false);
-    }
-  };
 
-  const handleDeleteParking = (id: number) => {
-    Alert.alert(
-      i18n.t('parkings.title'),
-      i18n.t('parkings.delete_confirm'),
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await parkingApi.deleteParking(id);
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              fetchParkings();
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar la cochera');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const toggleAddParking = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-    setIsAddingParking(!isAddingParking);
-  };
 
   const getInitials = () => {
     const f = firstName?.[0] || user?.email?.[0] || 'U';
@@ -392,7 +325,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
                 {vehiclesLoading ? (
                   <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
-                ) : vehicles.length > 0 ? (
+                ) : vehicles?.length > 0 ? (
                   <View style={styles.vehiclesList}>
                     {vehicles.map((v) => (
                       <TouchableOpacity 
@@ -426,97 +359,7 @@ export const ProfileScreen = ({ navigation }: any) => {
               </View>
             )}
 
-            {/* Parkings Section */}
-            {canManageParkings && !canManageVehicles && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="business-outline" size={26} color={theme.colors.secondary} />
-                    <Text style={styles.sectionTitle}>{i18n.t('parkings.title')}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    onPress={toggleAddParking}
-                    style={[styles.miniAddButton, isAddingParking && styles.miniAddButtonActive]}
-                  >
-                    <Ionicons name={isAddingParking ? "close" : "add"} size={24} color="white" />
-                  </TouchableOpacity>
-                </View>
 
-                {isAddingParking && (
-                  <View style={styles.addVehicleBox}>
-                    <View style={styles.plateInputContainer}>
-                      <TextInput
-                        style={styles.plateInput}
-                        value={newParkingName}
-                        onChangeText={setNewParkingName}
-                        placeholder={i18n.t('parkings.name')}
-                        placeholderTextColor="rgba(0,0,0,0.3)"
-                        autoCapitalize="words"
-                      />
-                    </View>
-                    <TextInput
-                      style={styles.modelInput}
-                      value={newParkingRate}
-                      onChangeText={setNewParkingRate}
-                      placeholder={i18n.t('parkings.rate')}
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      keyboardType="numeric"
-                    />
-                    <TouchableOpacity 
-                      style={styles.confirmVehicleBtn} 
-                      onPress={handleAddParking}
-                    >
-                      <LinearGradient
-                        colors={[theme.colors.primary, '#24C6A5']}
-                        style={styles.confirmVehicleGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                      >
-                        <Text style={styles.confirmVehicleText}>{i18n.t('parkings.register')}</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {parkingsLoading ? (
-                  <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
-                ) : parkings.length > 0 ? (
-                  <View style={styles.vehiclesList}>
-                    {parkings.map((p) => (
-                      <TouchableOpacity 
-                        key={p.id_parking} 
-                        style={styles.vehicleGlassCard}
-                        onLongPress={() => handleDeleteParking(p.id_parking)}
-                      >
-                        <View style={styles.parkingBadge}>
-                          <Ionicons name="business" size={24} color="#0033A0" />
-                        </View>
-                        <View style={styles.vehicleDetails}>
-                          <View>
-                            <Text style={styles.vehicleModelText}>{p.name}</Text>
-                            <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-                              ${p.base_hourly_rate}/h
-                            </Text>
-                          </View>
-                          <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
-                        </View>
-                        <TouchableOpacity 
-                          style={styles.deleteIcon}
-                          onPress={() => handleDeleteParking(p.id_parking)}
-                        >
-                          <Ionicons name="trash-outline" size={18} color={theme.colors.error} />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : !isAddingParking && (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="business-outline" size={48} color="rgba(255,255,255,0.1)" />
-                    <Text style={styles.emptyText}>{i18n.t('parkings.no_parkings')}</Text>
-                  </View>
-                )}
-              </View>
-            )}
 
             {/* Logout Footer */}
             <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
@@ -754,6 +597,95 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+  },
+  parkingGrid: {
+    gap: 15,
+  },
+  premiumParkingCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  premiumParkingGradient: {
+    padding: 20,
+  },
+  parkingCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  parkingMainInfo: {
+    flex: 1,
+  },
+  premiumParkingName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  miniDeleteBtn: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 15,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 8,
+    color: theme.colors.textSecondary,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  statDivider: {
+    width: 1,
+    height: '60%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignSelf: 'center',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  categoriesText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   parkingBadge: {
     backgroundColor: '#E8E8E8',

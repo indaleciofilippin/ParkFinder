@@ -60,7 +60,27 @@ class SpaceCategoryService:
         return db_category
 
     @staticmethod
+    def _prune_expired_bookings(db: Session):
+        """Cancela automáticamente las reservas pendientes que pasaron 10 min de su inicio"""
+        now = datetime.now(BA_TZ)
+        expired_limit = now - timedelta(minutes=10)
+        
+        expired_bookings = db.query(Booking).filter(
+            Booking.current_status == "pending",
+            Booking.expected_start_time < expired_limit
+        ).all()
+        
+        for b in expired_bookings:
+            b.current_status = "expired"
+        
+        if expired_bookings:
+            db.commit()
+
+    @staticmethod
     def get_parking_availability(db: Session, id_parking: int):
+        # Primero limpiamos reservas viejas
+        SpaceCategoryService._prune_expired_bookings(db)
+        
         now = datetime.now(BA_TZ)
         categories = db.query(SpaceCategory).filter(
             SpaceCategory.id_parking == id_parking,

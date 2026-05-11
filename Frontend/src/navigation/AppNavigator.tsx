@@ -3,6 +3,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
 import { AdminDashboardScreen } from '../screens/main/AdminDashboardScreen';
+import { FindParkingScreen } from '../screens/main/FindParkingScreen';
+import { CreateBookingScreen } from '../screens/main/CreateBookingScreen';
+import { ManageParkingScreen } from '../screens/main/ManageParkingScreen';
+import { MyParkingsScreen } from '../screens/main/MyParkingsScreen';
 import { theme } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
@@ -18,6 +22,10 @@ export const AppNavigator = () => {
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="FindParking" component={FindParkingScreen} />
+      <Stack.Screen name="CreateBooking" component={CreateBookingScreen} />
+      <Stack.Screen name="ManageParking" component={ManageParkingScreen} />
+      <Stack.Screen name="MyParkings" component={MyParkingsScreen} />
     </Stack.Navigator>
   );
 };

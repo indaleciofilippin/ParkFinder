@@ -37,12 +37,6 @@ class BookingCreate(BaseModel):
             return v.replace(tzinfo=BA_TZ)
         return v.astimezone(BA_TZ)
 
-    @validator("expected_start_time")
-    def validate_start_time_future(cls, v: datetime):
-        if v < datetime.now(BA_TZ):
-            raise ValueError("Start time must be in the future")
-        return v
-
     @validator("expected_end_time")
     def validate_end_after_start(cls, v, values):
         if "expected_start_time" in values and v <= values["expected_start_time"]:
@@ -96,6 +90,11 @@ def get_my_bookings(
     id_profile = current_user.get("id_profile")
     if id_profile is None:
         raise HTTPException(status_code=401, detail="Profile ID not found in token")
+    
+    # Limpiar reservas expiradas antes de mostrar la actividad
+    from app.services.space_category_service import SpaceCategoryService
+    SpaceCategoryService._prune_expired_bookings(db)
+        
     return BookingService.get_user_bookings(db, id_profile=id_profile)
 
 @router.put("/{id_booking}/status")
@@ -110,10 +109,10 @@ def update_status(
         raise HTTPException(status_code=401, detail="Profile ID not found in token")
         
     try:
-        updated = BookingService.update_booking_status(db, id_booking, new_status, id_profile)
-        if not updated:
+        result = BookingService.update_booking_status(db, id_booking, new_status, id_profile)
+        if not result:
             raise HTTPException(status_code=404, detail="Booking not found")
-        return {"msg": f"Booking status updated to {new_status}"}
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
