@@ -10,3 +10,4 @@ passlib[bcrypt]
 fastapi[all]
 sqlalchemy
 psycopg2-binary
+python-dotenv

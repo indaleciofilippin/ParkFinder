@@ -23,10 +23,25 @@ class BookingService:
         end_time: datetime
     ):
         # 1. Validaciones de Seguridad y Lógica
-        if start_time < datetime.now(BA_TZ):
-            raise ValueError("Start time must be in the future")
+        # Permitimos un margen de 5 minutos al pasado para evitar errores de red/sincronización
+        now = datetime.now(BA_TZ)
+        if start_time < (now - timedelta(minutes=5)):
+            raise ValueError("Start time must be in the future (or now)")
         if end_time <= start_time:
             raise ValueError("End time must be after start time")
+
+        # Verificar si el usuario YA tiene una reserva que se solapa en CUALQUIER lugar
+        user_overlap = db.query(Booking).filter(
+            Booking.id_profile == id_profile,
+            Booking.current_status.in_(["pending", "active"]),
+            and_(
+                Booking.expected_start_time < end_time,
+                Booking.expected_end_time > start_time
+            )
+        ).first()
+        
+        if user_overlap:
+            raise ValueError("Ya tienes otra reserva activa o pendiente en este horario")
 
         # Verificar que el vehículo pertenezca al usuario
         vehicle = db.query(Vehicle).filter_by(id_vehicle=id_vehicle, id_profile=id_profile).first()
@@ -113,14 +128,28 @@ class BookingService:
         if id_profile and booking.id_profile != id_profile:
             raise ValueError("Not authorized to update this booking")
 
-        booking.current_status = status
+        # Política de Cancelación
+        if status == "cancelled":
+            now = datetime.now(BA_TZ)
+            time_until_start = booking.expected_start_time - now
+            
+            if time_until_start < timedelta(minutes=30):
+                # Si falta menos de 30 min, se cancela pero con penalidad (no hay reembolso)
+                booking.current_status = "cancelled_with_penalty"
+                msg = "Cancelación fuera de término. Se aplicará el cobro total de la reserva."
+            else:
+                booking.current_status = "cancelled"
+                msg = "Reserva cancelada sin cargo."
+        else:
+            booking.current_status = status
+            msg = f"Reserva actualizada a {status}"
         
         history = BookingHistory(
             id_booking=booking.id_booking,
-            status=status,
+            status=booking.current_status,
             changed_at=datetime.now(BA_TZ)
         )
         db.add(history)
         db.commit()
         db.refresh(booking)
-        return booking
+        return {"booking": booking, "message": msg}

@@ -22,7 +22,7 @@ export const en = {
     back_to_login: "Back to Login",
   },
   social: {
-    continue_with: "Continue with %{provider}",
+    continue_with: "Continue with {{provider}}",
     apple_soon: "Apple coming soon"
   },
   home: {
@@ -52,17 +52,29 @@ export const en = {
       error_add: "Error registering vehicle",
       error_duplicate: "This license plate is already registered",
       error_invalid_format: "Invalid license plate format (E.g.: AAA123 or AA123BB)"
-    },
-    parkings: {
-      title: "My Parkings",
-      name: "Parking Name",
-      rate: "Hourly Rate ($)",
-      register: "Register Parking",
-      no_parkings: "You have no registered parkings",
-      delete_confirm: "Are you sure you want to delete this parking?",
-      success_add: "Parking registered successfully",
-      error_add: "Error registering parking",
     }
+  },
+  parkings: {
+    title: "My Parkings",
+    name: "Parking Name",
+    rate: "Hourly Rate ($)",
+    register: "Register Parking",
+    no_parkings: "You have no registered parkings",
+    delete_confirm: "Are you sure you want to delete this parking?",
+    success_add: "Parking registered successfully",
+    error_add: "Error registering parking",
+    manage_title: "Manage Parking",
+    general_info: "General Information",
+    availability_config: "Availability Configuration",
+    add_category: "Add Category",
+    category_name: "Name (e.g., Car, Bike)",
+    capacity: "Maximum Capacity",
+    multiplier: "Price Multiplier",
+    multiplier_hint: "e.g., 1.0 = Base Price, 1.5 = 50% more expensive",
+    save_parking: "Save Parking",
+    category_delete_confirm: "Delete this category?",
+    step_1: "Step 1",
+    step_2: "Step 2",
   },
   dashboard: {
     title: "Control Panel",
@@ -74,5 +86,26 @@ export const en = {
     confirm_deactivate: "Are you sure you want to deactivate this user?",
     success_role: "Role updated successfully",
     success_delete: "User deactivated successfully"
+  },
+  bookings: {
+    title: "My Bookings",
+    find_parking: "Find Parking",
+    select_vehicle: "Select Vehicle",
+    select_category: "Vehicle Type",
+    start_time: "From",
+    end_time: "To",
+    total_price: "Total Price",
+    confirm_booking: "Confirm Booking",
+    success_booking: "Booking successful!",
+    error_booking: "Error creating booking",
+    no_bookings: "No bookings found",
+    status: {
+      pending: "Pending",
+      active: "Active",
+      completed: "Completed",
+      cancelled: "Cancelled"
+    },
+    available_spots: "{{count}} spots available",
+    rate_info: "${{rate}}/hour"
   }
 };

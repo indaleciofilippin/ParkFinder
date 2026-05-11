@@ -60,7 +60,27 @@ class SpaceCategoryService:
         return db_category
 
     @staticmethod
+    def _prune_expired_bookings(db: Session):
+        """Cancela automáticamente las reservas pendientes que pasaron 10 min de su inicio"""
+        now = datetime.now(BA_TZ)
+        expired_limit = now - timedelta(minutes=10)
+        
+        expired_bookings = db.query(Booking).filter(
+            Booking.current_status == "pending",
+            Booking.expected_start_time < expired_limit
+        ).all()
+        
+        for b in expired_bookings:
+            b.current_status = "expired"
+        
+        if expired_bookings:
+            db.commit()
+
+    @staticmethod
     def get_parking_availability(db: Session, id_parking: int):
+        # Primero limpiamos reservas viejas
+        SpaceCategoryService._prune_expired_bookings(db)
+        
         now = datetime.now(BA_TZ)
         categories = db.query(SpaceCategory).filter(
             SpaceCategory.id_parking == id_parking,
@@ -101,5 +121,57 @@ class SpaceCategoryService:
             "total_capacity": total_capacity,
             "total_occupied": total_occupied,
             "total_available": max(0, total_capacity - total_occupied),
+            "categories": results
+        }
+    @staticmethod
+    def get_monitoring_data(db: Session, id_parking: int):
+        now = datetime.now(BA_TZ)
+        categories = db.query(SpaceCategory).filter(
+            SpaceCategory.id_parking == id_parking,
+            SpaceCategory.is_active == True
+        ).all()
+        
+        results = []
+        total_capacity = 0
+        total_active = 0
+        total_pending = 0
+        
+        for cat in categories:
+            # Active bookings: vehicles currently in the parking lot
+            active_count = db.query(Booking).filter(
+                Booking.id_category == cat.id_category,
+                Booking.current_status == "active"
+            ).count()
+
+            # Pending bookings: reservations that should be active now but haven't checked in yet
+            pending_count = db.query(Booking).filter(
+                Booking.id_category == cat.id_category,
+                Booking.current_status == "pending",
+                and_(
+                    Booking.expected_start_time <= now,
+                    Booking.expected_end_time >= now
+                )
+            ).count()
+            
+            total_capacity += cat.max_capacity
+            total_active += active_count
+            total_pending += pending_count
+            
+            results.append({
+                "id_category": cat.id_category,
+                "name": cat.name,
+                "max_capacity": cat.max_capacity,
+                "active_occupancy": active_count,
+                "pending_reservations": pending_count,
+                "available_spaces": max(0, cat.max_capacity - active_count - pending_count)
+            })
+            
+        return {
+            "id_parking": id_parking,
+            "timestamp": now.isoformat(),
+            "total_capacity": total_capacity,
+            "total_active": total_active,
+            "total_pending": total_pending,
+            "total_available": max(0, total_capacity - total_active - total_pending),
             "categories": results
         }
