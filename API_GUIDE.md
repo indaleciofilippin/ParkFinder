@@ -277,6 +277,28 @@ La API utiliza **JSON Web Tokens (JWT)**.
 - **Ruta:** `/parkings/availability/all`
 - **Header:** `Authorization: Bearer <TOKEN>`
 
+### 8. Escanear Patente (ANPR)
+**Requiere Token (Rol: park)** | Procesa la lectura de una patente. Registra la entrada (pasa reserva a `active`) o la salida (pasa a `completed` si pasó más de 1 minuto). Realiza búsqueda difusa (fuzzy match) tolerando 1 carácter de error.
+
+- **Método:** `POST`
+- **Ruta:** `/parkings/{id_parking}/scan-plate`
+- **Header:** `Authorization: Bearer <TOKEN>`
+- **Ejemplo de Body:**
+```json
+{
+  "license_plate": "AB123CD"
+}
+```
+- **Respuesta (200 OK):**
+```json
+{
+  "access_granted": true,
+  "detail": "ENTRY: Access granted for plate AB123CD (Read as: AB123CD)",
+  "booking_id": 10,
+  "vehicle_model": "Ford Fiesta"
+}
+```
+
 ---
 
 ## 🗂 Endpoints de Categorías de Espacio (`/parkings/{id}/categories`)
@@ -402,6 +424,7 @@ La API utiliza **JSON Web Tokens (JWT)**.
 | `/parkings/{id}` | DELETE | 🔐 Bearer Token | `park` |
 | `/parkings/{id}/availability` | GET | 🔐 Bearer Token | N/A |
 | `/parkings/availability/all` | GET | 🔐 Bearer Token | N/A |
+| `/parkings/{id}/scan-plate` | POST | 🔐 Bearer Token | `park` |
 | `/parkings/{id}/categories/` | GET | 🔐 Bearer Token | N/A |
 | `/parkings/{id}/categories/` | POST | 🔐 Bearer Token | `park` |
 | `/parkings/{id}/categories/{id}` | PUT | 🔐 Bearer Token | `park` |

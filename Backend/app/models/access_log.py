@@ -7,4 +7,4 @@ class AccessLog(BaseModel):
     id_booking = Column(Integer, ForeignKey("booking.id_booking"), nullable=False)
     ai_read_plate = Column(String(10), nullable=False)
     actual_entry_time = Column(TIMESTAMP(timezone=True), nullable=False)
-    actual_exit_time = Column(TIMESTAMP(timezone=True), nullable=False)
+    actual_exit_time = Column(TIMESTAMP(timezone=True), nullable=True)

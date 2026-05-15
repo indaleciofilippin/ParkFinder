@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import SessionLocal
 from app.services.parking_service import ParkingService
 from app.services.space_category_service import SpaceCategoryService
+from app.services.booking_service import BookingService
 from app.models.parking import Parking
 from app.views.base_view import BaseModel
 from typing import List, Optional
@@ -26,6 +27,9 @@ class ParkingUpdate(BaseModel):
     name: Optional[str] = None
     base_hourly_rate: Optional[float] = None
     is_active: Optional[bool] = None
+
+class ScanPlateRequest(BaseModel):
+    license_plate: str
 
 class ParkingResponse(BaseModel):
     id_parking: int
@@ -165,3 +169,18 @@ def get_parking_monitoring(
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
 
     return SpaceCategoryService.get_monitoring_data(db, id_parking)
+
+@router.post("/{id_parking}/scan-plate")
+def scan_plate(
+    id_parking: int,
+    request: ScanPlateRequest,
+    db: Session = Depends(get_db),
+    id_profile: int = Depends(verify_park_role)
+):
+    # Verificar propiedad del parking
+    parking = ParkingService.get_parking_by_id(db, id_parking)
+    if not parking or parking.id_profile != id_profile:
+        raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
+
+    result = BookingService.process_scanned_plate(db, id_parking, request.license_plate)
+    return result

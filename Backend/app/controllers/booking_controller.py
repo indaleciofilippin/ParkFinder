@@ -60,6 +60,14 @@ class BookingResponse(BaseModel):
     applied_rate: float
     current_status: str
 
+    @validator("expected_start_time", "expected_end_time", pre=True)
+    def ensure_ba_tz(cls, v):
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                return v.replace(tzinfo=BA_TZ)
+            return v.astimezone(BA_TZ)
+        return v
+
     class Config:
         from_attributes = True
 

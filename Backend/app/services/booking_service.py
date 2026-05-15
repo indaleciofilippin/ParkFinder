@@ -5,8 +5,10 @@ from app.models.booking_history import BookingHistory
 from app.models.space_category import SpaceCategory
 from app.models.parking import Parking
 from app.models.vehicle import Vehicle
+from app.models.access_log import AccessLog
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
+from decimal import Decimal
 
 # Definir Timezone de Buenos Aires (GMT-3)
 BA_TZ = timezone(timedelta(hours=-3))
@@ -32,6 +34,21 @@ class BookingService:
         vehicle = db.query(Vehicle).filter_by(id_vehicle=id_vehicle, id_profile=id_profile).first()
         if not vehicle:
             raise ValueError("Vehicle not found or doesn't belong to the user")
+
+        # Restricción: Una sola reserva pendiente/activa por vehículo por parking por día
+        start_of_day = datetime.combine(start_time.date(), datetime.min.time(), tzinfo=start_time.tzinfo)
+        end_of_day = start_of_day + timedelta(days=1)
+        
+        existing_reservation = db.query(Booking).filter(
+            Booking.id_vehicle == id_vehicle,
+            Booking.id_parking == id_parking,
+            Booking.current_status.in_(["pending", "active"]),
+            Booking.expected_start_time >= start_of_day,
+            Booking.expected_start_time < end_of_day
+        ).first()
+
+        if existing_reservation:
+            raise ValueError("You already have a pending or active reservation for this vehicle in this parking lot today. Please complete or cancel it first.")
 
         try:
             # 2. Control de Concurrencia (Locking)
@@ -64,7 +81,11 @@ class BookingService:
             if not parking:
                 raise ValueError("Parking not found")
                 
-            applied_rate = parking.base_hourly_rate * category.price_multiplier
+            # Calcular duración estimada en horas
+            duration = end_time - start_time
+            hours = duration.total_seconds() / 3600.0
+            
+            applied_rate = parking.base_hourly_rate * Decimal(str(hours)) * Decimal(str(category.price_multiplier))
 
             # 5. Crear Reserva
             booking = Booking(
@@ -124,3 +145,121 @@ class BookingService:
         db.commit()
         db.refresh(booking)
         return booking
+
+    @staticmethod
+    def _normalize_plate(plate: str) -> str:
+        if not plate: return ""
+        return "".join(c.upper() for c in plate if c.isalnum())
+
+    @staticmethod
+    def process_scanned_plate(db: Session, id_parking: int, license_plate: str):
+        norm_scanned = BookingService._normalize_plate(license_plate)
+        
+        # 1. Intentar búsqueda exacta primero
+        # Note: We can't easily use regex in SQLite/SQLAlchemy portably, so we fetch and filter if needed, 
+        # but for exact match we can try a direct match first assuming DB is normalized
+        vehicles = db.query(Vehicle).filter(Vehicle.is_active == True).all()
+        
+        vehicle = None
+        for v in vehicles:
+            if BookingService._normalize_plate(v.license_plate) == norm_scanned:
+                vehicle = v
+                break
+
+        booking = None
+        if vehicle:
+            # Obtener todas las reservas pendientes/activas ordenadas por tiempo
+            bookings = db.query(Booking).filter(
+                Booking.id_vehicle == vehicle.id_vehicle,
+                Booking.id_parking == id_parking,
+                Booking.current_status.in_(["pending", "active"])
+            ).order_by(Booking.expected_start_time.asc()).all()
+
+            # Buscar la primera válida (activa con access_log, o pendiente)
+            for b in bookings:
+                if b.current_status == "active":
+                    al = db.query(AccessLog).filter_by(id_booking=b.id_booking).first()
+                    if al:
+                        booking = b
+                        break
+                elif b.current_status == "pending":
+                    booking = b
+                    break
+
+        if not booking:
+            return {"access_granted": False, "detail": "No pending/active booking found for this plate"}
+
+        now = datetime.now(BA_TZ)
+
+        if booking.current_status == "pending":
+            # LOGICA DE ENTRADA
+            booking.current_status = "active"
+            
+            # Crear AccessLog
+            access_log = AccessLog(
+                id_booking=booking.id_booking,
+                ai_read_plate=license_plate,
+                actual_entry_time=now,
+                actual_exit_time=None
+            )
+            db.add(access_log)
+
+            history = BookingHistory(
+                id_booking=booking.id_booking,
+                status="active",
+                changed_at=now
+            )
+            db.add(history)
+            db.commit()
+            db.refresh(booking)
+
+            return {
+                "access_granted": True, 
+                "detail": f"ENTRY: Access granted for plate {vehicle.license_plate} (Read as: {license_plate})",
+                "booking_id": booking.id_booking,
+                "vehicle_model": vehicle.model
+            }
+            
+        elif booking.current_status == "active":
+            # LOGICA DE SALIDA
+            access_log = db.query(AccessLog).filter_by(id_booking=booking.id_booking).first()
+            if not access_log:
+                return {"access_granted": False, "detail": "Active booking but no access log found"}
+            
+            # Check 1 minute cooldown (grace period)
+            time_diff = now - access_log.actual_entry_time
+            if time_diff.total_seconds() < 60:
+                return {"access_granted": False, "detail": "Ignored: Still within 1 min grace period since entry"}
+
+            # Registrar salida
+            access_log.actual_exit_time = now
+            booking.current_status = "completed"
+
+            # Calcular precio final basado en el tiempo real
+            duration = now - access_log.actual_entry_time
+            hours = duration.total_seconds() / 3600.0
+            
+            # Obtener parking y categoría para recalcular
+            parking = db.query(Parking).filter_by(id_parking=booking.id_parking).first()
+            category = db.query(SpaceCategory).filter_by(id_category=booking.id_category).first()
+            
+            if parking and category:
+                # Se asume que applied_rate guarda el total acumulado
+                booking.applied_rate = parking.base_hourly_rate * Decimal(str(hours)) * Decimal(str(category.price_multiplier))
+
+            history = BookingHistory(
+                id_booking=booking.id_booking,
+                status="completed",
+                changed_at=now
+            )
+            db.add(history)
+            db.commit()
+            db.refresh(booking)
+
+            return {
+                "access_granted": True, 
+                "detail": f"EXIT: Vehicle departed. Booking completed.",
+                "booking_id": booking.id_booking,
+                "vehicle_model": vehicle.model
+            }
+
