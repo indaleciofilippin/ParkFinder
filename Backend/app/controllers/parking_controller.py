@@ -21,11 +21,17 @@ def get_db():
 class ParkingCreate(BaseModel):
     name: str
     base_hourly_rate: float
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class ParkingUpdate(BaseModel):
     name: Optional[str] = None
     base_hourly_rate: Optional[float] = None
     is_active: Optional[bool] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class ParkingResponse(BaseModel):
     id_parking: int
@@ -33,6 +39,9 @@ class ParkingResponse(BaseModel):
     name: str
     base_hourly_rate: Decimal
     is_active: bool
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -80,7 +89,10 @@ def create_parking(
             db,
             id_profile=id_profile, 
             name=parking.name, 
-            base_hourly_rate=parking.base_hourly_rate
+            base_hourly_rate=parking.base_hourly_rate,
+            address=parking.address,
+            latitude=parking.latitude,
+            longitude=parking.longitude
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -114,7 +126,10 @@ def update_parking(
             id_profile=id_profile, 
             name=parking.name, 
             base_hourly_rate=parking.base_hourly_rate,
-            is_active=parking.is_active
+            is_active=parking.is_active,
+            address=parking.address,
+            latitude=parking.latitude,
+            longitude=parking.longitude
         )
         if not updated:
             raise HTTPException(status_code=404, detail="Parking not found or not owned by user")

@@ -32,7 +32,15 @@
     "plugins": [
       "expo-secure-store",
       "expo-localization",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación.",
+          "locationAlwaysPermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación.",
+          "locationWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación."
+        }
+      ]
     ]
   }
 }

@@ -48,7 +48,7 @@ export const HomeScreen = ({ navigation }: any) => {
               <Ionicons name="car-sport" size={40} color="white" />
             </View>
           </View>
-          <TouchableOpacity style={styles.heroButton}>
+          <TouchableOpacity style={styles.heroButton} onPress={() => navigation.navigate('MapSearch')}>
             <Text style={styles.heroButtonText}>Buscar Lugar</Text>
             <Ionicons name="arrow-forward" size={16} color="#00f2fe" />
           </TouchableOpacity>
@@ -57,7 +57,7 @@ export const HomeScreen = ({ navigation }: any) => {
         {/* Quick Actions Grid */}
         <Text style={styles.sectionTitle}>{i18n.t('home.quick_actions')}</Text>
         <View style={styles.grid}>
-          <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" />
+          <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('MapSearch')} />
           <ActionCard icon="wallet-outline" title="Mi Billetera" color="#764ba2" />
           <ActionCard icon="time-outline" title="Historial" color="#f093fb" />
           <ActionCard 
