@@ -2,24 +2,24 @@ version: '3.8'
 
 services:
   backend:
-    build: ./backend
+    build: ./Backend
     container_name: parkfinder_backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./Backend:/app
     env_file:
       - .env
     networks:
       - parkfinder_net
 
   frontend:
-    build: ./frontend
+    build: ./Frontend
     container_name: parkfinder_frontend
     ports:
       - "8081:8081"
     volumes:
-      - ./frontend:/app
+      - ./Frontend:/app
       - /app/node_modules
     env_file:
       - .env

@@ -211,7 +211,106 @@ export const parkingApi = {
       throw new Error('Error al eliminar la cochera');
     }
     return response.json();
+  },
+
+  getParkingAvailability: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/availability`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la disponibilidad de la cochera');
+    }
+    return response.json();
+  },
+
+  getAllParkingsAvailability: async () => {
+    const response = await authenticatedFetch('/parkings/availability/all');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la disponibilidad de las cocheras');
+    }
+    return response.json();
   }
+};
+
+export const bookingApi = {
+  createBooking: async (data: { 
+    id_vehicle: number; 
+    id_parking: number; 
+    id_category: number; 
+    expected_start_time: string; 
+    expected_end_time: string; 
+  }) => {
+    const response = await authenticatedFetch('/bookings/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear la reserva');
+    }
+    return response.json();
+  },
+
+  getMyBookings: async () => {
+    const response = await authenticatedFetch('/bookings/me');
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las reservas');
+    }
+    return response.json();
+  },
+
+  updateBookingStatus: async (id_booking: number, new_status: string) => {
+    const response = await authenticatedFetch(`/bookings/${id_booking}/status?new_status=${new_status}`, {
+      method: 'PUT',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar el estado de la reserva');
+    }
+    return response.json();
+  },
+};
+
+export const categoryApi = {
+  getCategories: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/`);
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las categorías');
+    }
+    return response.json();
+  },
+
+  createCategory: async (id_parking: number, data: { name: string; max_capacity: number; price_multiplier: number }) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear la categoría');
+    }
+    return response.json();
+  },
+
+  updateCategory: async (id_parking: number, id_category: number, data: any) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/${id_category}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar la categoría');
+    }
+    return response.json();
+  },
+
+  deleteCategory: async (id_parking: number, id_category: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/${id_category}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error al eliminar la categoría');
+    }
+    return response.json();
+  },
 };
 
 export const adminApi = {

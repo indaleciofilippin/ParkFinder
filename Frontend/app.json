@@ -40,7 +40,8 @@
           "locationAlwaysPermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación.",
           "locationWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

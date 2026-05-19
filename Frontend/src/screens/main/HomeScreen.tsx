@@ -1,22 +1,86 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
+import { bookingApi } from '../../services/api';
 import { i18n } from '../../i18n';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
+  const fetchBookings = async () => {
+    try {
+      const data = await bookingApi.getMyBookings();
+      // Filtrar por activas o pendientes
+      const active = data.filter((b: any) => b.current_status === 'active' || b.current_status === 'pending');
+      setBookings(active);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleCancelBooking = async (id_booking: number) => {
+    Alert.alert(
+      '¿Cancelar reserva?',
+      'Si cancelas con menos de 30 minutos de antelación, se aplicará el cobro total.',
+      [
+        { text: 'Volver', style: 'cancel' },
+        { 
+          text: 'Confirmar Cancelación', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              const result = await bookingApi.updateBookingStatus(id_booking, 'cancelled');
+              Alert.alert('Estado', result.message);
+              fetchBookings();
+            } catch (error: any) {
+              const msg = error.response?.data?.detail || error.message;
+              Alert.alert('Error', msg);
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookings();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    fetchBookings();
+  };
+
   // Extraer nombre real o del email
   const displayName = user?.profile?.first_name || (user?.email ? user.email.split('@')[0] : 'Usuario');
+  const activeBooking = bookings.length > 0 ? bookings[0] : null;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+        }
+      >
         
         {/* Header Section */}
         <View style={styles.header}>
@@ -32,40 +96,104 @@ export const HomeScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* Hero Card - Active Status */}
-        <LinearGradient
-          colors={['#4facfe', '#00f2fe']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
-          <View style={styles.heroContent}>
-            <View>
-              <Text style={styles.heroTitle}>{i18n.t('home.parking_status')}</Text>
-              <Text style={styles.heroSubtitle}>{i18n.t('home.no_active_reservations')}</Text>
+        {/* Hero Card - Conditional based on role */}
+        {(user?.role === 'driver' || user?.role === 'dev' || user?.role === 'admin') ? (
+          <LinearGradient
+            colors={activeBooking ? ['#4facfe', '#00f2fe'] : ['#2c3e50', '#34495e']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroCard}
+          >
+            <View style={styles.heroContent}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroTitle}>
+                  {activeBooking ? 'Reserva Activa' : i18n.t('home.parking_status')}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {activeBooking 
+                    ? `Tienes una reserva en curso o pendiente.`
+                    : i18n.t('home.no_active_reservations')}
+                </Text>
+              </View>
+              <View style={styles.heroIconContainer}>
+                <Ionicons name={activeBooking ? "time" : "car-sport"} size={40} color="white" />
+              </View>
             </View>
-            <View style={styles.heroIconContainer}>
-              <Ionicons name="car-sport" size={40} color="white" />
+            
+            <TouchableOpacity 
+              style={styles.heroButton}
+              onPress={() => navigation.navigate('FindParking')}
+            >
+              <Text style={[styles.heroButtonText, { color: activeBooking ? '#00f2fe' : '#34495e' }]}>
+                {i18n.t('bookings.find_parking')}
+              </Text>
+              <Ionicons name="arrow-forward" size={16} color={activeBooking ? '#00f2fe' : '#34495e'} />
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : (
+          /* Parking Owner Hero */
+          <LinearGradient
+            colors={['#1e3c72', '#2a5298']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroCard}
+          >
+            <View style={styles.heroContent}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroTitle}>Gestión de Negocio</Text>
+                <Text style={styles.heroSubtitle}>Monitorea y administra tus cocheras en tiempo real.</Text>
+              </View>
+              <View style={styles.heroIconContainer}>
+                <Ionicons name="stats-chart" size={40} color="white" />
+              </View>
             </View>
-          </View>
-          <TouchableOpacity style={styles.heroButton} onPress={() => navigation.navigate('MapSearch')}>
-            <Text style={styles.heroButtonText}>Buscar Lugar</Text>
-            <Ionicons name="arrow-forward" size={16} color="#00f2fe" />
-          </TouchableOpacity>
-        </LinearGradient>
+            <TouchableOpacity 
+              style={styles.heroButton}
+              onPress={() => navigation.navigate('MyParkings')}
+            >
+              <Text style={[styles.heroButtonText, { color: '#2a5298' }]}>Ir a mis cocheras</Text>
+              <Ionicons name="arrow-forward" size={16} color="#2a5298" />
+            </TouchableOpacity>
+          </LinearGradient>
+        )}
 
         {/* Quick Actions Grid */}
         <Text style={styles.sectionTitle}>{i18n.t('home.quick_actions')}</Text>
         <View style={styles.grid}>
-          <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('MapSearch')} />
-          <ActionCard icon="wallet-outline" title="Mi Billetera" color="#764ba2" />
-          <ActionCard icon="time-outline" title="Historial" color="#f093fb" />
+          {/* Driver specific actions */}
+          {(user?.role === 'driver' || user?.role === 'dev' || user?.role === 'admin') && (
+            <>
+              <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('MapSearch')} />
+              <ActionCard icon="list-outline" title="Lista Cocheras" color="#00f2fe" onPress={() => navigation.navigate('FindParking')} />
+              <ActionCard icon="time-outline" title={i18n.t('bookings.title')} color="#f093fb" />
+            </>
+          )}
+
+          {/* Owner specific actions */}
+          {(user?.role === 'park' || user?.role === 'dev' || user?.role === 'admin') && (
+            <>
+              <ActionCard 
+                icon="business-outline" 
+                title="Mis Cocheras" 
+                color="#24C6A5" 
+                onPress={() => navigation.navigate('MyParkings')}
+              />
+              <ActionCard 
+                icon="analytics-outline" 
+                title="Ganancias" 
+                color="#764ba2" 
+              />
+            </>
+          )}
+
+          <ActionCard icon="wallet-outline" title="Billetera" color="#FF8C00" />
           <ActionCard 
             icon="person-outline" 
             title={i18n.t('profile.title')} 
             color="#f5576c" 
             onPress={() => navigation.navigate('Profile')}
           />
+
           {(user?.role === 'admin' || user?.role === 'dev') && (
             <ActionCard 
               icon="shield-outline" 
@@ -76,12 +204,43 @@ export const HomeScreen = ({ navigation }: any) => {
           )}
         </View>
 
-        {/* Recent Activity (Placeholder) */}
+        {/* Recent Activity */}
         <Text style={styles.sectionTitle}>{i18n.t('home.recent_activity')}</Text>
-        <View style={styles.emptyActivity}>
-          <Ionicons name="notifications-off-outline" size={48} color={theme.colors.textSecondary} />
-          <Text style={styles.emptyText}>{i18n.t('home.no_activity')}</Text>
-        </View>
+        {isLoading ? (
+          <ActivityIndicator color={theme.colors.primary} />
+        ) : bookings.length > 0 ? (
+          <View style={styles.bookingList}>
+            {bookings.map((booking) => (
+              <View key={booking.id_booking} style={styles.bookingCard}>
+                <View style={styles.bookingIcon}>
+                  <Ionicons name="calendar" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bookingTitle}>Reserva #{booking.id_booking}</Text>
+                  <Text style={styles.bookingDate}>
+                    {new Date(booking.expected_start_time).toLocaleDateString()} - {new Date(booking.expected_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={styles.statusChip}>
+                  <Text style={styles.statusText}>{i18n.t(`bookings.status.${booking.current_status}`)}</Text>
+                </View>
+                {booking.current_status === 'pending' && (
+                  <TouchableOpacity 
+                    style={styles.cancelBookingBtn}
+                    onPress={() => handleCancelBooking(booking.id_booking)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#ff4757" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyActivity}>
+            <Ionicons name="notifications-off-outline" size={48} color={theme.colors.textSecondary} />
+            <Text style={styles.emptyText}>{i18n.t('home.no_activity')}</Text>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -165,6 +324,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 10,
   },
   heroButton: {
     backgroundColor: 'white',
@@ -176,7 +336,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   heroButtonText: {
-    color: '#00f2fe',
     fontWeight: theme.typography.weights.bold,
     marginRight: 8,
   },
@@ -214,6 +373,56 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.typography.sizes.body,
     fontWeight: theme.typography.weights.medium,
+  },
+  bookingList: {
+    gap: theme.spacing.m,
+    marginBottom: theme.spacing.xl,
+  },
+  bookingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: theme.spacing.m,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: theme.spacing.m,
+  },
+  bookingIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: 'rgba(36, 198, 165, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookingTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  bookingDate: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  statusChip: {
+    backgroundColor: 'rgba(36, 198, 165, 0.15)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    color: theme.colors.primary,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  cancelBookingBtn: {
+    marginLeft: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 71, 87, 0.1)',
+    borderRadius: 10,
   },
   emptyActivity: {
     backgroundColor: theme.colors.surface,
