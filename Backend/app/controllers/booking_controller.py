@@ -128,3 +128,50 @@ def get_parking_bookings(
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
         
     return BookingService.get_parking_bookings(db, id_parking)
+
+class BarrierCheckRequest(BaseModel):
+    id_parking: int
+    license_plate: str
+
+@router.post("/barrier/check")
+def check_barrier_plate(request: BarrierCheckRequest, db: Session = Depends(get_db)):
+    try:
+        print(f"\n=======================================================")
+        print(f"📥 [BACKEND API] RECIBIDA CONSULTA DE BARRERA")
+        print(f"   🚗 Patente recibida: '{request.license_plate}'")
+        print(f"   🏢 Cochera ID: {request.id_parking}")
+        print(f"=======================================================\n")
+        
+        result = BookingService.process_barrier_check(db, request.id_parking, request.license_plate)
+        
+        print(f"\n=======================================================")
+        print(f"📤 [BACKEND API] RESULTADO ENVIADO")
+        print(f"   🚦 Status: {result.get('status')}")
+        print(f"   🎬 Acción: {result.get('action')}")
+        print(f"   💬 Mensaje: {result.get('message')}")
+        print(f"=======================================================\n")
+        
+        return result
+    except Exception as e:
+        print(f"\n=======================================================")
+        print(f"🚨 [BACKEND API] ERROR EXCEPCIONAL EN CONSULTA BARRERA")
+        print(f"   💥 Detalle: {str(e)}")
+        print(f"=======================================================\n")
+        raise HTTPException(status_code=500, detail=f"Internal error processing barrier check: {str(e)}")
+
+@router.get("/barrier/latest-event/{id_parking}")
+def get_latest_barrier_event(id_parking: int, db: Session = Depends(get_db)):
+    try:
+        event = BookingService.get_latest_barrier_event(db, id_parking)
+        if not event:
+            return {"has_event": False}
+        return {"has_event": True, "event": event}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error fetching latest event: {str(e)}")
+
+@router.post("/barrier/reset-state/{id_parking}")
+def reset_barrier_state(id_parking: int):
+    try:
+        return BookingService.reset_barrier_state(id_parking)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error resetting barrier state: {str(e)}")

@@ -133,6 +133,9 @@ def get_parkings(
             "parking_name": str(p.name or "Cochera"),
             "base_hourly_rate": float(p.base_hourly_rate or 0),
             "base_rate": float(p.base_hourly_rate or 0),
+            "address": p.address,
+            "latitude": float(p.latitude) if p.latitude is not None else None,
+            "longitude": float(p.longitude) if p.longitude is not None else None,
             "total_capacity": int(availability.get("total_capacity", 0)),
             "total_occupied": int(availability.get("total_occupied", 0)),
             "total_available": int(availability.get("total_available", 0)),
@@ -155,6 +158,9 @@ def get_parkings_by_user(
         availability = SpaceCategoryService.get_parking_availability(db, p.id_parking)
         availability["name"] = p.name
         availability["base_hourly_rate"] = float(p.base_hourly_rate)
+        availability["address"] = p.address
+        availability["latitude"] = float(p.latitude) if p.latitude is not None else None
+        availability["longitude"] = float(p.longitude) if p.longitude is not None else None
         results.append(availability)
     return results
 
@@ -222,6 +228,9 @@ def get_all_parkings_availability(
         availability["parking_name"] = p.name
         availability["base_hourly_rate"] = float(p.base_hourly_rate)
         availability["base_rate"] = float(p.base_hourly_rate)
+        availability["address"] = p.address
+        availability["latitude"] = float(p.latitude) if p.latitude is not None else None
+        availability["longitude"] = float(p.longitude) if p.longitude is not None else None
         results.append(availability)
     return results
 
@@ -237,3 +246,84 @@ def get_parking_monitoring(
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
 
     return SpaceCategoryService.get_monitoring_data(db, id_parking)
+
+@router.get("/{id_parking}/realtime-occupancy")
+def get_parking_realtime_occupancy(
+    id_parking: int,
+    db: Session = Depends(get_db),
+    id_profile: int = Depends(verify_park_role)
+):
+    # Verify ownership
+    db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+    if not db_parking:
+        raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
+    
+    # Query all active or pending bookings for this parking
+    from app.models.booking import Booking
+    from app.models.vehicle import Vehicle
+    from app.models.user_profile import UserProfile
+    from app.models.space_category import SpaceCategory
+
+    # Parked vehicles (status = active)
+    active_bookings = (
+        db.query(Booking, Vehicle, UserProfile, SpaceCategory)
+        .join(Vehicle, Booking.id_vehicle == Vehicle.id_vehicle)
+        .join(UserProfile, Booking.id_profile == UserProfile.id_profile)
+        .join(SpaceCategory, Booking.id_category == SpaceCategory.id_category)
+        .filter(Booking.id_parking == id_parking, Booking.current_status == "active")
+        .all()
+    )
+
+    parked_list = []
+    for b, v, p, c in active_bookings:
+        parked_list.append({
+            "id_booking": b.id_booking,
+            "first_name": p.first_name,
+            "last_name": p.last_name,
+            "phone": p.phone,
+            "license_plate": v.license_plate,
+            "vehicle_model": v.model,
+            "category_name": c.name,
+            "start_time": b.expected_start_time.isoformat() if b.expected_start_time else None,
+            "end_time": b.expected_end_time.isoformat() if b.expected_end_time else None,
+            "applied_rate": float(b.applied_rate) if b.applied_rate is not None else 0.0
+        })
+
+    # Upcoming reservations (status = pending)
+    pending_bookings = (
+        db.query(Booking, Vehicle, UserProfile, SpaceCategory)
+        .join(Vehicle, Booking.id_vehicle == Vehicle.id_vehicle)
+        .join(UserProfile, Booking.id_profile == UserProfile.id_profile)
+        .join(SpaceCategory, Booking.id_category == SpaceCategory.id_category)
+        .filter(Booking.id_parking == id_parking, Booking.current_status == "pending")
+        .all()
+    )
+
+    pending_list = []
+    for b, v, p, c in pending_bookings:
+        pending_list.append({
+            "id_booking": b.id_booking,
+            "first_name": p.first_name,
+            "last_name": p.last_name,
+            "phone": p.phone,
+            "license_plate": v.license_plate,
+            "vehicle_model": v.model,
+            "category_name": c.name,
+            "start_time": b.expected_start_time.isoformat() if b.expected_start_time else None,
+            "end_time": b.expected_end_time.isoformat() if b.expected_end_time else None,
+            "applied_rate": float(b.applied_rate) if b.applied_rate is not None else 0.0
+        })
+
+    # Calculate total capacity and available spaces dynamically based on categories
+    total_capacity = sum(cat.max_capacity for cat in SpaceCategoryService.get_categories_by_parking(db, id_parking))
+    total_available = max(0, total_capacity - len(parked_list) - len(pending_list))
+
+    return {
+        "parking_name": db_parking.name,
+        "total_capacity": total_capacity,
+        "total_available": total_available,
+        "parked_count": len(parked_list),
+        "pending_count": len(pending_list),
+        "currently_parked": parked_list,
+        "upcoming_reservations": pending_list
+    }

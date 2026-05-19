@@ -227,6 +227,14 @@ export const parkingApi = {
       throw new Error('No se pudo obtener la disponibilidad de las cocheras');
     }
     return response.json();
+  },
+
+  getRealtimeOccupancy: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/realtime-occupancy`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la ocupación en tiempo real de la cochera');
+    }
+    return response.json();
   }
 };
 
@@ -264,6 +272,43 @@ export const bookingApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.detail || 'Error al actualizar el estado de la reserva');
+    }
+    return response.json();
+  },
+
+  checkBarrierPlate: async (id_parking: number, license_plate: string) => {
+    const token = await getToken('access_token');
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/json');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    const response = await fetch(`${API_URL}/bookings/barrier/check`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id_parking, license_plate }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al validar patente en barrera');
+    }
+    return response.json();
+  },
+
+  getLatestBarrierEvent: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/barrier/latest-event/${id_parking}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el último evento de barrera');
+    }
+    return response.json();
+  },
+
+  resetBarrierState: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/barrier/reset-state/${id_parking}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('No se pudo restablecer el estado de la barrera');
     }
     return response.json();
   },

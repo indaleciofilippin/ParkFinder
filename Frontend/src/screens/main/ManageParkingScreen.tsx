@@ -16,6 +16,13 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
   // Parking State
   const [name, setName] = useState(existingParking?.name || '');
   
+  // Location State
+  const [location, setLocation] = useState<any>(
+    existingParking?.latitude && existingParking?.longitude 
+    ? { latitude: existingParking.latitude, longitude: existingParking.longitude } 
+    : null
+  );
+  
   // Categories State (local until saved)
   const [categories, setCategories] = useState<any[]>([]);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -113,6 +120,10 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
       Alert.alert('Error', 'Debes agregar al menos un tipo de lugar (ej: Autos)');
       return;
     }
+    if (!location) {
+      Alert.alert('Ubicación requerida', 'Por favor fija la ubicación de tu cochera en el mapa');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -120,18 +131,20 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
       const baseRate = categories[0].absolute_price;
       let parkingId = existingParking?.id_parking;
 
+      const payload = {
+        name: name.trim(), 
+        base_hourly_rate: parseFloat(baseRate),
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: "Ubicación fijada" // Puedes cambiar esto a geocoding inverso después
+      };
+
       if (existingParking) {
         // Update existing
-        await parkingApi.updateParking(parkingId, { 
-          name: name.trim(), 
-          base_hourly_rate: parseFloat(baseRate) 
-        });
+        await parkingApi.updateParking(parkingId, payload);
       } else {
         // Create new
-        const newParking = await parkingApi.createParking({ 
-          name: name.trim(), 
-          base_hourly_rate: parseFloat(baseRate) 
-        });
+        const newParking = await parkingApi.createParking(payload);
         parkingId = newParking.id_parking;
       }
 
@@ -173,7 +186,7 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nombre</Text>
+            <Text style={styles.sectionTitle}>Nombre y Ubicación</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="business-outline" size={20} color={theme.colors.primary} style={styles.inputIcon} />
               <TextInput
@@ -184,6 +197,58 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
                 onChangeText={setName}
               />
             </View>
+            {location ? (
+              <TouchableOpacity 
+                style={styles.locationCardActive}
+                onPress={() => navigation.navigate('OwnerParkingMap', { 
+                  onLocationSelect: (coords: any) => setLocation(coords),
+                  latitude: location?.latitude,
+                  longitude: location?.longitude,
+                  address: location?.address || existingParking?.address,
+                  id_parking: existingParking?.id_parking
+                })}
+              >
+                <View style={styles.locationCardLeft}>
+                  <View style={styles.locationIconOuter}>
+                    <Ionicons name="location" size={20} color="#00f2fe" />
+                  </View>
+                  <View style={styles.locationTextWrapper}>
+                    <Text style={styles.locationCardTitle}>Ubicación Establecida</Text>
+                    <Text style={styles.locationCardSub} numberOfLines={1} ellipsizeMode="tail">
+                      {location.address || existingParking?.address || `Lat: ${location.latitude.toFixed(4)} • Lon: ${location.longitude.toFixed(4)}`}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.locationCardRight}>
+                  <Text style={styles.locationEditBtnText}>Editar</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#00f2fe" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.locationCardInactive}
+                onPress={() => navigation.navigate('OwnerParkingMap', { 
+                  onLocationSelect: (coords: any) => setLocation(coords),
+                  latitude: location?.latitude,
+                  longitude: location?.longitude,
+                  address: location?.address || existingParking?.address,
+                  id_parking: existingParking?.id_parking
+                })}
+              >
+                <View style={styles.locationCardLeft}>
+                  <View style={styles.locationIconOuterInactive}>
+                    <Ionicons name="map-outline" size={20} color="#ff9f43" />
+                  </View>
+                  <View style={styles.locationTextWrapper}>
+                    <Text style={styles.locationCardTitleInactive}>Establecer Ubicación</Text>
+                    <Text style={styles.locationCardSubInactive}>Requerido para poder guardar la cochera</Text>
+                  </View>
+                </View>
+                <View style={styles.locationCardRight}>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -298,9 +363,9 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
 
         <View style={styles.footer}>
           <TouchableOpacity 
-            style={[styles.saveButton, (isLoading || categories.length === 0) && styles.disabledButton]} 
+            style={[styles.saveButton, (isLoading || categories.length === 0 || !location) && styles.disabledButton]} 
             onPress={handleGlobalSave}
-            disabled={isLoading || categories.length === 0}
+            disabled={isLoading || categories.length === 0 || !location}
           >
             <LinearGradient
               colors={[theme.colors.primary, '#24C6A5']}
@@ -562,5 +627,97 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
-  }
+  },
+  locationCardActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 242, 254, 0.04)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 242, 254, 0.25)',
+    marginTop: 10,
+    shadowColor: '#00f2fe',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  locationCardInactive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255, 159, 67, 0.3)',
+    marginTop: 10,
+  },
+  locationCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 10,
+  },
+  locationIconOuter: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 242, 254, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.2)',
+  },
+  locationIconOuterInactive: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 159, 67, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 159, 67, 0.15)',
+  },
+  locationTextWrapper: {
+    justifyContent: 'center',
+    flex: 1,
+  },
+  locationCardTitle: {
+    color: '#00f2fe',
+    fontSize: 15,
+    fontWeight: 'bold',
+    letterSpacing: 0.2,
+  },
+  locationCardTitleInactive: {
+    color: '#ff9f43',
+    fontSize: 15,
+    fontWeight: 'bold',
+    letterSpacing: 0.2,
+  },
+  locationCardSub: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  locationCardSubInactive: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  locationCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationEditBtnText: {
+    color: '#00f2fe',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
 });

@@ -9,6 +9,8 @@ import { FindParkingScreen } from '../screens/main/FindParkingScreen';
 import { CreateBookingScreen } from '../screens/main/CreateBookingScreen';
 import { ManageParkingScreen } from '../screens/main/ManageParkingScreen';
 import { MyParkingsScreen } from '../screens/main/MyParkingsScreen';
+import { BarrierSimulatorScreen } from '../screens/main/BarrierSimulatorScreen';
+import { RealtimeOccupancyScreen } from '../screens/main/RealtimeOccupancyScreen';
 import { theme } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
@@ -30,6 +32,8 @@ export const AppNavigator = () => {
       <Stack.Screen name="CreateBooking" component={CreateBookingScreen} />
       <Stack.Screen name="ManageParking" component={ManageParkingScreen} />
       <Stack.Screen name="MyParkings" component={MyParkingsScreen} />
+      <Stack.Screen name="BarrierSimulator" component={BarrierSimulatorScreen} />
+      <Stack.Screen name="RealtimeOccupancy" component={RealtimeOccupancyScreen} />
     </Stack.Navigator>
   );
 };

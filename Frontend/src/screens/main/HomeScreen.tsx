@@ -122,7 +122,7 @@ export const HomeScreen = ({ navigation }: any) => {
             
             <TouchableOpacity 
               style={styles.heroButton}
-              onPress={() => navigation.navigate('FindParking')}
+              onPress={() => navigation.navigate('MapSearch')}
             >
               <Text style={[styles.heroButtonText, { color: activeBooking ? '#00f2fe' : '#34495e' }]}>
                 {i18n.t('bookings.find_parking')}
@@ -187,6 +187,12 @@ export const HomeScreen = ({ navigation }: any) => {
           )}
 
           <ActionCard icon="wallet-outline" title="Billetera" color="#FF8C00" />
+          <ActionCard 
+            icon="git-compare-outline" 
+            title="Simular Barrera" 
+            color="#FF3366" 
+            onPress={() => navigation.navigate('BarrierSimulator')} 
+          />
           <ActionCard 
             icon="person-outline" 
             title={i18n.t('profile.title')} 

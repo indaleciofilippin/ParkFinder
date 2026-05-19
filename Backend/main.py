@@ -29,9 +29,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-async def jwt_middleware(request: Request, token: str = Depends(oauth2_scheme)):
-    if request.url.path.startswith("/api/v1/auth/") or request.url.path.startswith("/api/v1/health") or request.url.path == "/":
+async def jwt_middleware(request: Request):
+    # Allow completely public access to authentication, health checks, and AI barrier endpoints
+    if request.url.path.startswith("/api/v1/auth/") or "/barrier" in request.url.path or request.url.path.startswith("/api/v1/health") or request.url.path == "/":
         return
+        
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    token = auth_header.split(" ")[1]
     payload = await get_current_user(token)
     request.state.user = payload.get("sub")
     request.state.role = payload.get("role")
