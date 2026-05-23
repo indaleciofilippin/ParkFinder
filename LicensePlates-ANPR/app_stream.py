@@ -107,12 +107,13 @@ with st.sidebar:
     with st.expander("⚙️ Advanced Settings", expanded=False):
         st.write("**Performance Settings**")
 
-        process_every_n_frames = st.slider(
-            "Process every N frames",
-            min_value=1,
-            max_value=15,
-            value=5,
-            help="Higher values = better performance but fewer detections",
+        ai_read_interval = st.slider(
+            "AI Reading Interval (seconds)",
+            min_value=0.5,
+            max_value=10.0,
+            value=3.0,
+            step=0.5,
+            help="How often the AI should process a frame for license plate detection",
         )
 
         show_fps = st.checkbox("Show FPS", value=True)
@@ -180,6 +181,9 @@ if "processing_queue" not in st.session_state:
 
 if "sent_plates" not in st.session_state:
     st.session_state.sent_plates = {} # {plate: last_sent_time}
+
+if "last_ai_read_time" not in st.session_state:
+    st.session_state.last_ai_read_time = 0.0
 
 if start_stream:
     st.session_state.streaming = True
@@ -372,8 +376,9 @@ if st.session_state.streaming:
                     fps = 30 / (current_time - start_time)
                     start_time = current_time
 
-                # Process every N frames for detection
-                detect_this_frame = frame_count % process_every_n_frames == 0
+                # Process only based on configured time interval
+                current_time = time.time()
+                detect_this_frame = (current_time - st.session_state.last_ai_read_time) >= ai_read_interval
 
                 if detect_this_frame:
                     if use_threading and executor:
@@ -393,12 +398,14 @@ if st.session_state.streaming:
                                 except Exception as e:
                                     pass  # Ignore processing errors
 
-                            # Start new processing
+                            # Start new processing and update last read time
+                            st.session_state.last_ai_read_time = current_time
                             processing_future = executor.submit(
                                 process_frame_async, frame.copy(), frame_count
                             )
                     else:
-                        # Synchronous processing (fallback)
+                        # Synchronous processing (fallback) and update last read time
+                        st.session_state.last_ai_read_time = current_time
                         results = process_frame_async(frame.copy(), frame_count)
                         if results:
                             st.session_state.last_results = results

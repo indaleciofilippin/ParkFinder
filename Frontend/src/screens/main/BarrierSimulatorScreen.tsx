@@ -12,13 +12,15 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Platform
+  Platform,
+  TextStyle
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../theme/theme';
 import { parkingApi, vehicleApi, bookingApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 
@@ -36,6 +38,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
   const [autoSync, setAutoSync] = useState(false);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string | null>(null);
+  const [scanningPlate, setScanningPlate] = useState(false);
 
   // Animated values
   const barrierRotation = useRef(new Animated.Value(0)).current; // 0 for closed (0 deg), 1 for open (-90 deg)
@@ -124,8 +127,8 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     // Run immediately on enable
     pollLatestEvent();
 
-    // Poll every 2 seconds
-    intervalId = setInterval(pollLatestEvent, 2000);
+    // Poll every 1.5 seconds (1500 ms)
+    intervalId = setInterval(pollLatestEvent, 1500);
 
     return () => {
       clearInterval(intervalId);
@@ -167,6 +170,61 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
       useNativeDriver: true
     }).start(callback);
+  };
+
+  const handleScanPlate = async () => {
+    if (!selectedParking) {
+      Alert.alert('Cochera Requerida', 'Por favor, selecciona una cochera para poder escanear.');
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permiso Denegado', 
+          'Se requiere acceso a la cámara para poder tomar una foto y leer la patente de forma automática.'
+        );
+        addLog('[LECTOR IA] Permiso de cámara denegado.');
+        return;
+      }
+
+      addLog('[LECTOR IA] Levantando cámara del dispositivo móvil...');
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        addLog('[LECTOR IA] Captura cancelada por el usuario.');
+        return;
+      }
+
+      setScanningPlate(true);
+      addLog('[LECTOR IA] Foto capturada con éxito. Enviando imagen al servidor...');
+
+      const imageUri = result.assets[0].uri;
+      const response = await bookingApi.scanBarrierPlateImage(imageUri);
+
+      if (response.success && response.plate) {
+        const detectedPlate = response.plate.toUpperCase();
+        setLicensePlate(detectedPlate);
+        addLog(`[LECTOR IA] Patente identificada exitosamente: "${detectedPlate}"`);
+        Alert.alert('Patente Detectada', `Se ha leído la patente "${detectedPlate}" con éxito.`);
+      } else {
+        addLog('[ERROR] No se detectó ninguna patente en la imagen. Intenta encuadrarla mejor.');
+        Alert.alert('Lectura Fallida', 'No se pudo detectar ninguna patente en la imagen. Asegúrate de enfocar bien la patente del vehículo.');
+      }
+    } catch (err: any) {
+      console.error('[IA SCAN ERROR]', err);
+      const errMsg = err.message || 'Error desconocido';
+      addLog(`[ERROR] Fallo al procesar escaneo: ${errMsg}`);
+      Alert.alert('Error de Escaneo', `Ocurrió un error al enviar la imagen para procesar: ${errMsg}`);
+    } finally {
+      setScanningPlate(false);
+    }
   };
 
   // Perform plate check and trigger barrier action
@@ -425,9 +483,21 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               value={licensePlate}
               onChangeText={setLicensePlate}
             />
-            {licensePlate.length > 0 && (
+            {licensePlate.length > 0 ? (
               <TouchableOpacity onPress={() => setLicensePlate('')} style={styles.clearBtn}>
                 <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                onPress={handleScanPlate} 
+                style={styles.clearBtn} 
+                disabled={scanningPlate || loading}
+              >
+                {scanningPlate ? (
+                  <ActivityIndicator size="small" color="#00f2fe" />
+                ) : (
+                  <Ionicons name="camera-outline" size={20} color="#00f2fe" />
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -456,6 +526,29 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               </ScrollView>
             </View>
           )}
+
+          {/* Cámara Scan Button */}
+          <TouchableOpacity
+            style={[styles.scanCameraBtn, (scanningPlate || loading) && styles.scanCameraBtnDisabled]}
+            onPress={handleScanPlate}
+            disabled={scanningPlate || loading}
+          >
+            <LinearGradient
+              colors={['#8a2be2', '#da70d6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientBtn}
+            >
+              {scanningPlate ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="camera" size={22} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.scanCameraBtnText}>ESCANEAR CON CÁMARA MÓVIL (IA)</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* Submit Trigger Button */}
           <TouchableOpacity
@@ -493,7 +586,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           </View>
           <View style={styles.consoleBody}>
             {logs.map((log, idx) => {
-              let textStyle = styles.logText;
+              let textStyle: TextStyle = styles.logText;
               if (log.includes('[ERROR]')) textStyle = styles.logError;
               else if (log.includes('[APROBADO]')) textStyle = styles.logApproved;
               else if (log.includes('[RECHAZADO]')) textStyle = styles.logDenied;
@@ -877,6 +970,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
+  scanCameraBtn: {
+    borderRadius: 16,
+    height: 50,
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: '#da70d6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  scanCameraBtnDisabled: {
+    opacity: 0.6,
+  },
+  scanCameraBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
   consoleCard: {
     backgroundColor: '#05070f',
     borderRadius: 20,
@@ -925,22 +1038,26 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontSize: 11,
     fontWeight: 'bold',
+    lineHeight: 14,
   },
   logApproved: {
     color: '#2ecc71',
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontSize: 11,
     fontWeight: 'bold',
+    lineHeight: 14,
   },
   logDenied: {
     color: '#f39c12',
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontSize: 11,
     fontWeight: 'bold',
+    lineHeight: 14,
   },
   logReader: {
     color: '#00f2fe',
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontSize: 11,
+    lineHeight: 14,
   }
 });

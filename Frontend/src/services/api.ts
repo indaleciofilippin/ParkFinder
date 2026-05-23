@@ -312,6 +312,33 @@ export const bookingApi = {
     }
     return response.json();
   },
+
+  scanBarrierPlateImage: async (imageUri: string) => {
+    const token = await getToken('access_token');
+    const headers = new Headers();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'plate_capture.jpg',
+    } as any);
+
+    const response = await fetch(`${API_URL}/bookings/barrier/scan-plate`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al escanear la imagen de la patente');
+    }
+    return response.json();
+  },
 };
 
 export const categoryApi = {

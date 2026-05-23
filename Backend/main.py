@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.vehicle_controller import router as vehicle_router
 from app.controllers.parking_controller import router as parking_router
@@ -28,6 +30,22 @@ app.add_middleware(
     allow_methods=["*"],  # Incluye OPTIONS esencial para la pre-solicitud (preflight)
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    if errors:
+        first_error_msg = errors[0].get("msg", "Error de validación")
+        if first_error_msg.lower().startswith("value error, "):
+            first_error_msg = first_error_msg[13:]
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": first_error_msg}
+        )
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)}
+    )
 
 async def jwt_middleware(request: Request):
     # Allow completely public access to authentication, health checks, and AI barrier endpoints

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from app.core.security import get_current_user
 from sqlalchemy.orm import Session
 from app.core.config import SessionLocal
@@ -175,3 +175,85 @@ def reset_barrier_state(id_parking: int):
         return BookingService.reset_barrier_state(id_parking)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error resetting barrier state: {str(e)}")
+
+@router.post("/barrier/scan-plate")
+def scan_plate(file: UploadFile = File(...)):
+    import os
+    import shutil
+    import subprocess
+    import json
+    
+    # Directorio temporal de subidas en el workspace
+    temp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../temp_uploads"))
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Nombre del archivo temporal
+    temp_file_path = os.path.join(temp_dir, f"upload_{file.filename}")
+    
+    try:
+        # Guardar el archivo temporalmente
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Determinar el ejecutable de Python del entorno virtual
+        python_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "../../../LicensePlates-ANPR/venv/bin/python"
+        ))
+        
+        # Determinar el script de escaneo
+        script_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "../../../LicensePlates-ANPR/scan_image.py"
+        ))
+        
+        if not os.path.exists(python_path):
+            raise HTTPException(status_code=500, detail=f"Venv python interpreter not found at: {python_path}")
+            
+        if not os.path.exists(script_path):
+            raise HTTPException(status_code=500, detail=f"ANPR scan script not found at: {script_path}")
+            
+        # Ejecutar el subproceso usando el intérprete de python del venv de la IA
+        print(f"📡 [BACKEND] Procesando imagen subida: '{file.filename}' con IA ANPR...")
+        result = subprocess.run(
+            [python_path, script_path, temp_file_path],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        # Loggear stderr si existe
+        if result.stderr:
+            print(f"⚠️ [BACKEND] Subprocess stderr: {result.stderr}")
+            
+        # Parsea la salida JSON del script
+        try:
+            output_json = json.loads(result.stdout.strip())
+        except Exception as json_err:
+            print(f"❌ [BACKEND] Error al parsear salida del script ANPR: {result.stdout}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al procesar la salida del script ANPR. Raw output: {result.stdout}"
+            )
+            
+        # Verificar si hubo un error reportado por el script
+        if "error" in output_json:
+            raise HTTPException(status_code=400, detail=output_json["error"])
+            
+        print(f"✅ [BACKEND] IA ANPR completada exitosamente. Patente: {output_json.get('best_match')}")
+        return {
+            "success": output_json.get("success", False),
+            "plate": output_json.get("best_match"),
+            "plates": output_json.get("plates", [])
+        }
+        
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        print(f"🚨 [BACKEND] Excepción inesperada en scan-plate: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error during scanning: {str(e)}")
+    finally:
+        # Limpieza del archivo temporal
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception as clean_err:
+                print(f"⚠️ [BACKEND] No se pudo eliminar el archivo temporal {temp_file_path}: {clean_err}")
