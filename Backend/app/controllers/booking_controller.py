@@ -28,6 +28,8 @@ class BookingCreate(BaseModel):
     id_category: int
     expected_start_time: datetime
     expected_end_time: datetime
+    card_token: str
+    payment_method_id: str
 
     @validator("expected_start_time", "expected_end_time")
     def force_buenos_aires_tz(cls, v: datetime):
@@ -64,8 +66,11 @@ def create_booking(
     current_user: dict = Depends(get_current_user)
 ):
     id_profile = current_user.get("id_profile")
+    email = current_user.get("sub")
     if id_profile is None:
         raise HTTPException(status_code=401, detail="Profile ID not found in token")
+    if not email:
+        raise HTTPException(status_code=401, detail="Email not found in token")
         
     try:
         return BookingService.create_booking(
@@ -75,7 +80,10 @@ def create_booking(
             id_parking=booking.id_parking,
             id_category=booking.id_category,
             start_time=booking.expected_start_time,
-            end_time=booking.expected_end_time
+            end_time=booking.expected_end_time,
+            card_token=booking.card_token,
+            payment_method_id=booking.payment_method_id,
+            email=email
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

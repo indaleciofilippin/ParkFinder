@@ -322,7 +322,7 @@ La API utiliza **JSON Web Tokens (JWT)**.
 ## 📅 Endpoints de Reservas (`/bookings`)
 
 ### 1. Crear Reserva
-**Requiere Token (Rol: driver)** | Realiza una reserva en un estacionamiento. Verifica disponibilidad concurrente.
+**Requiere Token (Rol: driver)** | Realiza una reserva en un estacionamiento. Registra el método de pago en Mercado Pago (Tokenización) y crea una factura inicial. Verifica disponibilidad concurrente.
 
 - **Método:** `POST`
 - **Ruta:** `/bookings/`
@@ -334,7 +334,46 @@ La API utiliza **JSON Web Tokens (JWT)**.
   "id_parking": 1,
   "id_category": 1,
   "expected_start_time": "2026-05-10T10:00:00Z",
-  "expected_end_time": "2026-05-10T12:00:00Z"
+  "expected_end_time": "2026-05-10T12:00:00Z",
+  "card_token": "92a2a0753066d9ab...",
+  "payment_method_id": "visa"
+}
+```
+
+### 2. Control de Barrera (Check-in / Check-out con Mercado Pago)
+**Público (Simulador/ANPR)** | Procesa el ingreso o egreso de vehículos por patente. Al egresar (Check-out), calcula la estadía en horas (redondeando hacia arriba), cobra automáticamente usando la tarjeta tokenizada en Mercado Pago (Checkout API / Test Accounts), actualiza la factura y guarda la transacción.
+
+- **Método:** `POST`
+- **Ruta:** `/bookings/barrier/check`
+- **Ejemplo de Body:**
+```json
+{
+  "id_parking": 1,
+  "license_plate": "ABC-1234"
+}
+```
+- **Respuesta de Egreso (Check-out Exitoso):**
+```json
+{
+  "status": "allowed",
+  "action": "check-out",
+  "message": "Salida autorizada para Toyota Corolla 2023 (ABC-1234). ¡Gracias por elegirnos! Total cobrado: $550.00",
+  "booking_id": 1,
+  "vehicle_model": "Toyota Corolla 2023",
+  "total_charged": 550.0,
+  "payment_status": "paid"
+}
+```
+
+- **Respuesta de Egreso (Check-out Fallido - Pago Rechazado):**
+```json
+{
+  "status": "denied",
+  "action": "none",
+  "message": "Acceso denegado. El cobro automático de $550.00 fue rechazado por Mercado Pago. Verifique su medio de pago.",
+  "booking_id": 1,
+  "total_charged": 550.0,
+  "payment_status": "failed"
 }
 ```
 
