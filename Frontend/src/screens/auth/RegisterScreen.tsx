@@ -36,6 +36,16 @@ export const RegisterScreen = ({ navigation }: any) => {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
+
+    // Validar fortaleza de la contraseña
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_+\-\[\]\\\/]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        'Contraseña poco segura',
+        'La contraseña debe tener al menos:\n• 8 caracteres\n• Una letra mayúscula\n• Una letra minúscula\n• Un número\n• Un carácter especial (ej: !, @, #, $, %, etc.)'
+      );
+      return;
+    }
     
     setIsLoading(true);
     try {

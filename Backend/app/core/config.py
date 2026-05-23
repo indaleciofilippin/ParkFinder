@@ -21,6 +21,20 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 with engine.connect() as connection:
     connection.execute(text("CREATE SCHEMA IF NOT EXISTS parkfinder"))
     
+    # Migración manual para parking (ubicación)
+    try:
+        connection.execute(text("ALTER TABLE parking ADD COLUMN IF NOT EXISTS address VARCHAR(200)"))
+    except Exception:
+        pass
+    try:
+        connection.execute(text("ALTER TABLE parking ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)"))
+    except Exception:
+        pass
+    try:
+        connection.execute(text("ALTER TABLE parking ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)"))
+    except Exception:
+        pass
+
     # Migración manual para space_category
     try:
         connection.execute(text("ALTER TABLE space_category ADD COLUMN IF NOT EXISTS max_capacity INTEGER DEFAULT 0"))

@@ -92,16 +92,23 @@ class SpaceCategoryService:
         total_occupied = 0
         
         for cat in categories:
-            # Contar reservas activas o pendientes que se solapan con 'ahora'
-            occupied_count = db.query(Booking).filter(
+            # Active occupancy (vehicles physically inside)
+            active_count = db.query(Booking).filter(
                 Booking.id_category == cat.id_category,
-                Booking.current_status.in_(["pending", "active"]),
+                Booking.current_status == "active"
+            ).count()
+
+            # Overlapping reservations (reserved right now but not checked in yet)
+            pending_count = db.query(Booking).filter(
+                Booking.id_category == cat.id_category,
+                Booking.current_status == "pending",
                 and_(
                     Booking.expected_start_time <= now,
                     Booking.expected_end_time >= now
                 )
             ).count()
             
+            occupied_count = active_count + pending_count
             available = max(0, cat.max_capacity - occupied_count)
             
             results.append({

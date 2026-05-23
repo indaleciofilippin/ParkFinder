@@ -55,6 +55,17 @@ export const FindParkingScreen = ({ navigation }: any) => {
             <View style={styles.headerInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.parkingName} numberOfLines={1}>{item.name || item.parking_name || 'Cochera'}</Text>
+                {item.latitude && item.longitude && (
+                  <TouchableOpacity 
+                    style={styles.mapIconButton}
+                    onPress={() => navigation.navigate('MapSearch', { 
+                      targetLat: item.latitude, 
+                      targetLng: item.longitude 
+                    })}
+                  >
+                    <Ionicons name="map-outline" size={18} color="#00f2fe" />
+                  </TouchableOpacity>
+                )}
                 <Text style={styles.rateText}>Desde {formatCurrency(Math.round(minPrice))}/h</Text>
               </View>
               <View style={styles.statusBadge}>
@@ -62,6 +73,9 @@ export const FindParkingScreen = ({ navigation }: any) => {
                 <Text style={[styles.statusText, { color: isAvailable ? theme.colors.success : theme.colors.error }]}>
                   {isAvailable ? 'Disponible' : 'Completo'}
                 </Text>
+                {item.address && (
+                  <Text style={styles.addressText} numberOfLines={1}>• {item.address}</Text>
+                )}
               </View>
             </View>
           </View>
@@ -235,6 +249,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  addressText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    marginLeft: 4,
+    flex: 1,
+  },
+  mapIconButton: {
+    padding: 6,
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    borderRadius: 8,
+    marginRight: 8,
   },
   statsGrid: {
     flexDirection: 'row',

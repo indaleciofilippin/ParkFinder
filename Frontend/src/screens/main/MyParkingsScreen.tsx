@@ -165,20 +165,36 @@ export const MyParkingsScreen = ({ navigation }: any) => {
                 <View style={styles.divider} />
 
                 <View style={styles.cardFooter}>
-                  <View style={styles.footerStat}>
-                    <Text style={styles.statLabel}>TOTAL LUGARES</Text>
-                    <Text style={styles.statValue}>{p.total_capacity}</Text>
+                  <View style={styles.statsRow}>
+                    <View style={styles.footerStat}>
+                      <Text style={styles.statLabel}>TOTAL LUGARES</Text>
+                      <Text style={styles.statValue}>{p.total_capacity}</Text>
+                    </View>
+                    <View style={styles.footerStat}>
+                      <Text style={styles.statLabel}>DISPONIBLES</Text>
+                      <Text style={[styles.statValue, { color: p.total_available > 0 ? theme.colors.primary : theme.colors.error }]}>
+                        {p.total_available}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.footerStat}>
-                    <Text style={styles.statLabel}>DISPONIBLES</Text>
-                    <Text style={[styles.statValue, { color: p.total_available > 0 ? theme.colors.primary : theme.colors.error }]}>
-                      {p.total_available}
-                    </Text>
+                  
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity 
+                      style={styles.monitorBtnFull} 
+                      onPress={() => navigation.navigate('RealtimeOccupancy', { id_parking: p.id_parking, parkingName: p.name })}
+                    >
+                      <Ionicons name="pulse" size={15} color="#00f2fe" />
+                      <Text style={styles.monitorBtnText}>Monitorear</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.editBtnFull} 
+                      onPress={() => navigation.navigate('ManageParking', { parking: p })}
+                    >
+                      <Text style={styles.editBtnText}>Gestionar</Text>
+                      <Ionicons name="chevron-forward" size={15} color={theme.colors.primary} />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ManageParking', { parking: p })}>
-                    <Text style={styles.editBtnText}>Gestionar</Text>
-                    <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
-                  </TouchableOpacity>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -390,12 +406,16 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   cardFooter: {
+    gap: 16,
+  },
+  statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: 4,
   },
   footerStat: {
     gap: 4,
+    flex: 1,
   },
   statLabel: {
     fontSize: 9,
@@ -408,14 +428,39 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
-  editBtn: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  monitorBtnFull: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(36, 198, 165, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    paddingVertical: 10,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.25)',
+  },
+  monitorBtnText: {
+    color: '#00f2fe',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  editBtnFull: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(36, 198, 165, 0.1)',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(36, 198, 165, 0.25)',
   },
   editBtnText: {
     color: theme.colors.primary,

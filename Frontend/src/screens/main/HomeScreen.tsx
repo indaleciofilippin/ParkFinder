@@ -122,7 +122,7 @@ export const HomeScreen = ({ navigation }: any) => {
             
             <TouchableOpacity 
               style={styles.heroButton}
-              onPress={() => navigation.navigate('FindParking')}
+              onPress={() => navigation.navigate('MapSearch')}
             >
               <Text style={[styles.heroButtonText, { color: activeBooking ? '#00f2fe' : '#34495e' }]}>
                 {i18n.t('bookings.find_parking')}
@@ -147,7 +147,6 @@ export const HomeScreen = ({ navigation }: any) => {
                 <Ionicons name="stats-chart" size={40} color="white" />
               </View>
             </View>
-            
             <TouchableOpacity 
               style={styles.heroButton}
               onPress={() => navigation.navigate('MyParkings')}
@@ -164,7 +163,8 @@ export const HomeScreen = ({ navigation }: any) => {
           {/* Driver specific actions */}
           {(user?.role === 'driver' || user?.role === 'dev' || user?.role === 'admin') && (
             <>
-              <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('FindParking')} />
+              <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('MapSearch')} />
+              <ActionCard icon="list-outline" title="Lista Cocheras" color="#00f2fe" onPress={() => navigation.navigate('FindParking')} />
               <ActionCard icon="time-outline" title={i18n.t('bookings.title')} color="#f093fb" />
             </>
           )}
@@ -187,7 +187,12 @@ export const HomeScreen = ({ navigation }: any) => {
           )}
 
           <ActionCard icon="wallet-outline" title="Billetera" color="#FF8C00" />
-          
+          <ActionCard 
+            icon="git-compare-outline" 
+            title="Simular Barrera" 
+            color="#FF3366" 
+            onPress={() => navigation.navigate('BarrierSimulator')} 
+          />
           <ActionCard 
             icon="person-outline" 
             title={i18n.t('profile.title')} 

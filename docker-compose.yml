@@ -32,6 +32,20 @@ services:
     networks:
       - parkfinder_net
 
+  anpr:
+    build: ./LicensePlates-ANPR
+    container_name: parkfinder_anpr
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./LicensePlates-ANPR:/app
+    env_file:
+      - .env
+    devices:
+      - /dev/video0:/dev/video0
+    networks:
+      - parkfinder_net
+
 networks:
   parkfinder_net:
     driver: bridge
