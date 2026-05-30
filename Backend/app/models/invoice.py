@@ -9,5 +9,5 @@ class Invoice(BaseModel):
     total_amount = Column(Numeric(10,2), nullable=False)
     platform_revenue = Column(Numeric(10,2), nullable=False)
     payment_status = Column(String(10), nullable=False)
-    issue_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    issued_at = Column(TIMESTAMP(timezone=True), nullable=False)
     id_booking = Column(Integer, ForeignKey("booking.id_booking"), nullable=False)

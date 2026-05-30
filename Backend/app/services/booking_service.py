@@ -6,6 +6,11 @@ from app.models.space_category import SpaceCategory
 from app.models.parking import Parking
 from app.models.vehicle import Vehicle
 from app.models.access_log import AccessLog
+from app.models.invoice import Invoice
+from app.models.payment_transaction import PaymentTransaction
+from app.services.payment_service import PaymentService
+from decimal import Decimal
+import math
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 import time
@@ -44,7 +49,10 @@ class BookingService:
         id_parking: int,
         id_category: int,
         start_time: datetime,
-        end_time: datetime
+        end_time: datetime,
+        card_token: str,
+        payment_method_id: str,
+        email: str
     ):
         # 1. Validaciones de Seguridad y Lógica
         # Permitimos un margen de 5 minutos al pasado para evitar errores de red/sincronización
@@ -126,6 +134,35 @@ class BookingService:
                 changed_at=datetime.now(BA_TZ)
             )
             db.add(history)
+            
+            # 6. Registrar método de pago en Mercado Pago (Tokenización simulada o real con fallback)
+            payment_service = PaymentService()
+            card_info = payment_service.create_customer_and_save_card(email, card_token)
+            
+            # Crear Factura inicial (pendiente de cálculo al check-out)
+            invoice = Invoice(
+                subtotal_parking=Decimal("0.00"),
+                service_fee=Decimal("0.00"),
+                total_amount=Decimal("0.00"),
+                platform_revenue=Decimal("0.00"),
+                payment_status="pending",
+                issued_at=datetime.now(BA_TZ),
+                id_booking=booking.id_booking
+            )
+            db.add(invoice)
+            db.flush()
+            
+            # Registrar la transacción tokenizada
+            gateway_ref = f"{card_info['customer_id']}|{card_info['card_id']}|{payment_method_id}"
+            transaction = PaymentTransaction(
+                id_invoice=invoice.id_invoice,
+                gateway_reference=gateway_ref,
+                payment_method=payment_method_id,
+                amount_attemped=Decimal("0.00"),
+                status="pending",
+                attemped_at=datetime.now(BA_TZ)
+            )
+            db.add(transaction)
 
             db.commit()
             db.refresh(booking)
@@ -258,13 +295,16 @@ class BookingService:
             # Log inside access log (find existing entry log first)
             access_log = db.query(AccessLog).filter_by(id_booking=active_booking.id_booking).order_by(AccessLog.id_access_log.desc()).first()
             now = datetime.now(BA_TZ)
+            entry_time = active_booking.expected_start_time
             if access_log:
                 access_log.actual_exit_time = now
+                if access_log.actual_entry_time:
+                    entry_time = access_log.actual_entry_time
             else:
                 access_log = AccessLog(
                     id_booking=active_booking.id_booking,
                     ai_read_plate=vehicle.license_plate,
-                    actual_entry_time=active_booking.expected_start_time,
+                    actual_entry_time=entry_time,
                     actual_exit_time=now
                 )
                 db.add(access_log)
@@ -276,15 +316,115 @@ class BookingService:
                 changed_at=now
             )
             db.add(history)
+
+            # CALCULATE FARE AND PROCESS MERCADO PAGO CHARGE
+            duration = now - entry_time
+            duration_seconds = duration.total_seconds()
+            # Calculate hours rounded up, minimum 1 hour
+            hours = max(1.0, math.ceil(duration_seconds / 3600.0))
+            
+            subtotal = Decimal(str(hours)) * active_booking.applied_rate
+            service_fee = subtotal * Decimal("0.10") # 10% platform fee
+            total_amount = subtotal + service_fee
+            platform_revenue = service_fee
+            
+            payment_status = "failed"
+            gateway_reference = "none"
+            payment_method_id = "credit_card"
+            
+            # Look for the pending invoice and payment transaction
+            invoice = db.query(Invoice).filter_by(id_booking=active_booking.id_booking, payment_status="pending").first()
+            if not invoice:
+                print("❌ [CHECK-OUT] No pending invoice found for this booking.")
+                return {
+                    "status": "denied",
+                    "action": "none",
+                    "message": "Acceso denegado. No se encontró una factura pendiente para esta reserva."
+                }
+                
+            transaction = db.query(PaymentTransaction).filter_by(id_invoice=invoice.id_invoice, status="pending").first()
+            if not transaction:
+                print("❌ [CHECK-OUT] No pending transaction found for this invoice.")
+                return {
+                    "status": "denied",
+                    "action": "none",
+                    "message": "Acceso denegado. No se encontró una transacción de pago registrada."
+                }
+
+            try:
+                # Extract customer_id, card_id, and payment_method_id
+                parts = transaction.gateway_reference.split("|")
+                customer_id = parts[0]
+                card_id = parts[1]
+                payment_method_id = parts[2] if len(parts) > 2 else "visa"
+                
+                # Retrieve driver email
+                from app.models.user_profile import UserProfile
+                from app.models.user_auth import UserAuth
+                driver_profile = db.query(UserProfile).filter_by(id_profile=active_booking.id_profile).first()
+                driver_auth = db.query(UserAuth).filter_by(id_user_auth=driver_profile.id_auth).first() if driver_profile else None
+                driver_email = driver_auth.email if driver_auth else "driver@parkfinder.com"
+                
+                # Charge via Mercado Pago SDK
+                payment_service = PaymentService()
+                payment_result = payment_service.charge_saved_card(
+                    customer_id=customer_id,
+                    card_id=card_id,
+                    amount=float(total_amount),
+                    payment_method_id=payment_method_id,
+                    email=driver_email
+                )
+                
+                payment_status = "paid" if payment_result["status"] == "approved" else "failed"
+                gateway_reference = payment_result["gateway_reference"]
+                payment_method_id = payment_result["payment_method"]
+            except Exception as pay_err:
+                print(f"⚠️ [CHECK-OUT] Error processing payment flow: {pay_err}")
+                payment_status = "failed"
+                gateway_reference = "error"
+        
+            # Update existing invoice
+            invoice.subtotal_parking = subtotal
+            invoice.service_fee = service_fee
+            invoice.total_amount = total_amount
+            invoice.platform_revenue = platform_revenue
+            invoice.payment_status = payment_status
+            invoice.issued_at = now
+            
+            # Save the checkout transaction attempt
+            charge_tx = PaymentTransaction(
+                id_invoice=invoice.id_invoice,
+                gateway_reference=gateway_reference,
+                payment_method=payment_method_id,
+                amount_attemped=total_amount,
+                status="approved" if payment_status == "paid" else "rejected",
+                attemped_at=now
+            )
+            db.add(charge_tx)
+            
+            if payment_status != "paid":
+                db.commit() # Commit the failed invoice/transaction status
+                print(f"❌ [CHECK-OUT] Payment failed or rejected by Mercado Pago for booking {active_booking.id_booking}")
+                return {
+                    "status": "denied",
+                    "action": "none",
+                    "message": f"Acceso denegado. El cobro automático de ${total_amount:.2f} fue rechazado por Mercado Pago. Verifique su medio de pago.",
+                    "booking_id": active_booking.id_booking,
+                    "total_charged": float(total_amount),
+                    "payment_status": "failed"
+                }
+
             db.commit()
             
             barrier_open_states[id_parking] = time.time()
             return {
                 "status": "allowed",
                 "action": "check-out",
-                "message": f"Salida autorizada para {vehicle.model} ({vehicle.license_plate}). ¡Gracias por elegirnos!",
+                "message": f"Salida autorizada para {vehicle.model} ({vehicle.license_plate}). ¡Gracias por elegirnos! Total cobrado: ${total_amount:.2f}",
                 "booking_id": active_booking.id_booking,
-                "vehicle_model": vehicle.model
+                "vehicle_model": vehicle.model,
+                "total_charged": float(total_amount),
+                "payment_status": payment_status
             }
 
         # 4. If no active booking, look for a pending booking (for check-in)
