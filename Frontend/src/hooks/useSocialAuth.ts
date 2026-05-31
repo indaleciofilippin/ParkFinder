@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -8,12 +8,33 @@ import { useAuth } from '../context/AuthContext';
 // Permite a Expo cerrar el navegador interno cuando se completa el Auth
 WebBrowser.maybeCompleteAuthSession();
 
+// Variables para el módulo nativo (se carga dinámicamente)
+let GoogleSignin: any = null;
+let statusCodes: any = null;
+let isErrorWithCode: any = null;
+
+try {
+  // Intentar cargar la librería nativa. Esto fallará en Expo Go y lo atraparemos.
+  const GoogleSignInModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin = GoogleSignInModule.GoogleSignin;
+  statusCodes = GoogleSignInModule.statusCodes;
+  isErrorWithCode = GoogleSignInModule.isErrorWithCode;
+
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    offlineAccess: false,
+  });
+} catch (error) {
+  console.log('El módulo nativo de Google Sign In no está disponible (ejecutando en Expo Go o entorno web).');
+}
+
 export const useSocialAuth = () => {
   const { socialLogin } = useAuth();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
 
-  // === GOOGLE AUTH LOGIC ===
+  // === EXPO GOOGLE AUTH LOGIC (Para Expo Go, Web o fallback) ===
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'unconfigured.apps.googleusercontent.com',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'unconfigured.apps.googleusercontent.com',
@@ -22,11 +43,11 @@ export const useSocialAuth = () => {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      handleGoogleResponse(response);
+      handleExpoGoogleResponse(response);
     }
   }, [response]);
 
-  const handleGoogleResponse = async (res: any) => {
+  const handleExpoGoogleResponse = async (res: any) => {
     const { authentication } = res;
     setIsGoogleLoading(true);
     try {
@@ -53,15 +74,59 @@ export const useSocialAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    if (!request) {
-      Alert.alert('Error', 'Google Auth no está disponible aún');
-      return;
+    // Si tenemos el módulo nativo cargado, intentamos usar Google Sign In Nativo
+    if (GoogleSignin) {
+      setIsGoogleLoading(true);
+      try {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        
+        if (userInfo.type === 'success') {
+          const { user } = userInfo.data;
+          await socialLogin({
+            email: user.email,
+            auth_provider: 'google',
+            role: 'pending',
+            provider_id: user.id,
+            first_name: user.givenName || '',
+            last_name: user.familyName || ''
+          });
+        }
+      } catch (error: any) {
+        if (isErrorWithCode && isErrorWithCode(error)) {
+          if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+            // user cancelled the login flow
+          } else if (error.code === statusCodes.IN_PROGRESS) {
+            // operation (e.g. sign in) is in progress already
+          } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+            Alert.alert('Error', 'Play Services no disponible o desactualizado');
+          } else {
+            console.error('Error Native Google Login:', error);
+            Alert.alert('Error', 'Fallo al iniciar sesión con Google');
+          }
+        } else {
+          console.error('Error Native Google Login:', error);
+          Alert.alert('Error', 'Fallo al iniciar sesión con Google');
+        }
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    } else {
+      // En Expo Go o Web usar Expo Auth Session
+      if (!request) {
+        Alert.alert('Error', 'Google Auth no está disponible aún');
+        return;
+      }
+      promptAsync();
     }
-    promptAsync();
   };
 
   // === APPLE AUTH LOGIC ===
   const signInWithApple = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('No soportado', 'El inicio de sesión con Apple no está soportado en la versión Web actual.');
+      return;
+    }
     setIsAppleLoading(true);
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -99,6 +164,6 @@ export const useSocialAuth = () => {
     signInWithApple,
     isGoogleLoading,
     isAppleLoading,
-    isGoogleAvailable: !!request,
+    isGoogleAvailable: true,
   };
 };

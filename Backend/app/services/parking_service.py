@@ -3,11 +3,14 @@ from app.models.parking import Parking
 
 class ParkingService:
     @staticmethod
-    def create_parking(db: Session, id_profile: int, name: str, base_hourly_rate: float):
+    def create_parking(db: Session, id_profile: int, name: str, base_hourly_rate: float, address: str = None, latitude: float = None, longitude: float = None):
         db_parking = Parking(
             id_profile=id_profile,
             name=name,
             base_hourly_rate=base_hourly_rate,
+            address=address,
+            latitude=latitude,
+            longitude=longitude,
             is_active=True
         )
         db.add(db_parking)
@@ -24,17 +27,23 @@ class ParkingService:
         return db.query(Parking).filter(Parking.id_parking == id_parking, Parking.is_active == True).first()
 
     @staticmethod
-    def update_parking(db: Session, id_parking: int, id_profile: int, name: str = None, base_hourly_rate: float = None, is_active: bool = None):
+    def update_parking(db: Session, id_parking: int, id_profile: int, name: str = None, base_hourly_rate: float = None, is_active: bool = None, address: str = None, latitude: float = None, longitude: float = None):
         db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
         if not db_parking:
             return None
         
-        if name:
+        if name is not None:
             db_parking.name = name
         if base_hourly_rate is not None:
             db_parking.base_hourly_rate = base_hourly_rate
         if is_active is not None:
             db_parking.is_active = is_active
+        if address is not None:
+            db_parking.address = address
+        if latitude is not None:
+            db_parking.latitude = latitude
+        if longitude is not None:
+            db_parking.longitude = longitude
             
         db.commit()
         db.refresh(db_parking)

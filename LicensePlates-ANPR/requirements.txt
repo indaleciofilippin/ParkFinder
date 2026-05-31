@@ -1,0 +1,13 @@
+fast-plate-ocr==0.3.0
+supervision==0.25.1
+python-dotenv
+typer[all]==0.12.5
+rich==13.0.1
+watchdog==6.0.0
+streamlit==1.45.1
+requests
+ultralytics==8.3.40
+opencv-python-headless==4.10.0.84
+fastapi
+uvicorn
+python-multipart

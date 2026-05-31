@@ -7,7 +7,7 @@ class VehicleService:
         # Verificar si la patente ya existe (en vehículos activos)
         existing = db.query(Vehicle).filter(Vehicle.license_plate == license_plate, Vehicle.is_active == True).first()
         if existing:
-            raise ValueError(f"License plate {license_plate} is already registered")
+            raise ValueError(f"License plate {license_plate} is already registered and active")
             
         db_vehicle = Vehicle(
             id_profile=id_profile,
@@ -35,7 +35,7 @@ class VehicleService:
             return None
         
         if license_plate:
-            # Verificar si la nueva patente ya existe en otro vehículo activo
+            # Verificar si la nueva patente ya existe en otro vehículo ACTIVO
             existing = db.query(Vehicle).filter(
                 Vehicle.license_plate == license_plate, 
                 Vehicle.is_active == True,

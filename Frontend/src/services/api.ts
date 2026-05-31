@@ -1,10 +1,23 @@
 import * as SecureStore from 'expo-secure-store';
+// @ts-ignore
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.23:8000/api/v1';
+// Detectar dinámicamente la IP local del servidor de desarrollo de Expo
+let devIp = 'localhost';
+if (Constants.expoConfig?.hostUri) {
+  devIp = Constants.expoConfig.hostUri.split(':')[0];
+}
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || `http://${devIp}:8000/api/v1`;
 
 export const saveToken = async (key: string, value: string) => {
   try {
-    await SecureStore.setItemAsync(key, value);
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value);
+    }
   } catch (error) {
     console.error('Error saving token', error);
   }
@@ -12,7 +25,11 @@ export const saveToken = async (key: string, value: string) => {
 
 export const getToken = async (key: string) => {
   try {
-    return await SecureStore.getItemAsync(key);
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    } else {
+      return await SecureStore.getItemAsync(key);
+    }
   } catch (error) {
     console.error('Error getting token', error);
     return null;
@@ -21,7 +38,11 @@ export const getToken = async (key: string) => {
 
 export const removeToken = async (key: string) => {
   try {
-    await SecureStore.deleteItemAsync(key);
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
   } catch (error) {
     console.error('Error removing token', error);
   }
@@ -211,7 +232,196 @@ export const parkingApi = {
       throw new Error('Error al eliminar la cochera');
     }
     return response.json();
+  },
+
+  getParkingAvailability: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/availability`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la disponibilidad de la cochera');
+    }
+    return response.json();
+  },
+
+  getAllParkingsAvailability: async () => {
+    const response = await authenticatedFetch('/parkings/availability/all');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la disponibilidad de las cocheras');
+    }
+    return response.json();
+  },
+
+  getRealtimeOccupancy: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/realtime-occupancy`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la ocupación en tiempo real de la cochera');
+    }
+    return response.json();
   }
+};
+
+export const bookingApi = {
+  createBooking: async (data: { 
+    id_vehicle: number; 
+    id_parking: number; 
+    id_category: number; 
+    expected_start_time: string; 
+    expected_end_time: string;
+    card_token: string;
+    payment_method_id: string;
+  }) => {
+    const response = await authenticatedFetch('/bookings/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear la reserva');
+    }
+    return response.json();
+  },
+
+  getMyBookings: async () => {
+    const response = await authenticatedFetch('/bookings/me');
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las reservas');
+    }
+    return response.json();
+  },
+
+  getParkingBookings: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/parking/${id_parking}`);
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las reservas de la cochera');
+    }
+    return response.json();
+  },
+
+  updateBookingStatus: async (id_booking: number, new_status: string) => {
+    const response = await authenticatedFetch(`/bookings/${id_booking}/status?new_status=${new_status}`, {
+      method: 'PUT',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar el estado de la reserva');
+    }
+    return response.json();
+  },
+
+  getSavedPaymentMethod: async () => {
+    const response = await authenticatedFetch('/bookings/payment-method/saved');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el método de pago guardado');
+    }
+    return response.json();
+  },
+
+  checkBarrierPlate: async (id_parking: number, license_plate: string) => {
+    const token = await getToken('access_token');
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/json');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    const response = await fetch(`${API_URL}/bookings/barrier/check`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id_parking, license_plate }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al validar patente en barrera');
+    }
+    return response.json();
+  },
+
+  getLatestBarrierEvent: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/barrier/latest-event/${id_parking}`);
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el último evento de barrera');
+    }
+    return response.json();
+  },
+
+  resetBarrierState: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/barrier/reset-state/${id_parking}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('No se pudo restablecer el estado de la barrera');
+    }
+    return response.json();
+  },
+
+  scanBarrierPlateImage: async (imageUri: string) => {
+    const token = await getToken('access_token');
+    const headers = new Headers();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'plate_capture.jpg',
+    } as any);
+
+    const response = await fetch(`${API_URL}/bookings/barrier/scan-plate`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al escanear la imagen de la patente');
+    }
+    return response.json();
+  },
+};
+
+export const categoryApi = {
+  getCategories: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/`);
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las categorías');
+    }
+    return response.json();
+  },
+
+  createCategory: async (id_parking: number, data: { name: string; max_capacity: number; price_multiplier: number }) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al crear la categoría');
+    }
+    return response.json();
+  },
+
+  updateCategory: async (id_parking: number, id_category: number, data: any) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/${id_category}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Error al actualizar la categoría');
+    }
+    return response.json();
+  },
+
+  deleteCategory: async (id_parking: number, id_category: number) => {
+    const response = await authenticatedFetch(`/parkings/${id_parking}/categories/${id_category}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error al eliminar la categoría');
+    }
+    return response.json();
+  },
 };
 
 export const adminApi = {

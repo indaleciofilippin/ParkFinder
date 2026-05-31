@@ -22,7 +22,7 @@ export const es = {
     back_to_login: "Volver a Iniciar Sesión",
   },
   social: {
-    continue_with: "Continuar con %{provider}",
+    continue_with: "Continuar con {{provider}}",
     apple_soon: "Próximamente con Apple"
   },
   home: {
@@ -52,17 +52,29 @@ export const es = {
       error_add: "Error al registrar el vehículo",
       error_duplicate: "Esta patente ya está registrada",
       error_invalid_format: "Formato de patente inválido (Ej: AAA123 o AA123BB)"
-    },
-    parkings: {
-      title: "Mis Cocheras",
-      name: "Nombre de la Cochera",
-      rate: "Tarifa por hora ($)",
-      register: "Registrar Cochera",
-      no_parkings: "No tienes cocheras registradas",
-      delete_confirm: "¿Estás seguro de eliminar esta cochera?",
-      success_add: "Cochera registrada exitosamente",
-      error_add: "Error al registrar cochera",
     }
+  },
+  parkings: {
+    title: "Mis Cocheras",
+    name: "Nombre de la Cochera",
+    rate: "Tarifa por hora ($)",
+    register: "Registrar Cochera",
+    no_parkings: "No tienes cocheras registradas",
+    delete_confirm: "¿Estás seguro de eliminar esta cochera?",
+    success_add: "Cochera registrada exitosamente",
+    error_add: "Error al registrar cochera",
+    manage_title: "Gestionar Cochera",
+    general_info: "Información General",
+    availability_config: "Configuración de Disponibilidad",
+    add_category: "Agregar Categoría",
+    category_name: "Nombre (Ej: Auto, Moto)",
+    capacity: "Capacidad Máxima",
+    multiplier: "Multiplicador de Precio",
+    multiplier_hint: "Ej: 1.0 = Precio Base, 1.5 = 50% más caro",
+    save_parking: "Guardar Cochera",
+    category_delete_confirm: "¿Eliminar esta categoría?",
+    step_1: "Paso 1",
+    step_2: "Paso 2",
   },
   dashboard: {
     title: "Panel de Control",
@@ -74,5 +86,28 @@ export const es = {
     confirm_deactivate: "¿Estás seguro de desactivar este usuario?",
     success_role: "Rol actualizado correctamente",
     success_delete: "Usuario desactivado correctamente"
+  },
+  bookings: {
+    title: "Mis Reservas",
+    find_parking: "Buscar Cochera",
+    select_vehicle: "Seleccionar Vehículo",
+    select_category: "Tipo de Vehículo",
+    start_time: "Desde",
+    end_time: "Hasta",
+    total_price: "Precio Total",
+    confirm_booking: "Confirmar Reserva",
+    success_booking: "¡Reserva realizada con éxito!",
+    error_booking: "Error al realizar la reserva",
+    no_bookings: "No tienes reservas",
+    status: {
+      pending: "Pendiente",
+      active: "Activa",
+      completed: "Completada",
+      cancelled: "Cancelada",
+      expired: "Vencida",
+      cancelled_with_penalty: "Multada"
+    },
+    available_spots: "{{count}} lugares disponibles",
+    rate_info: "${{rate}}/hora"
   }
 };

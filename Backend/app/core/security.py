@@ -6,8 +6,16 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or 30)
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or 3600)
+
+if not SECRET_KEY:
+    testing_val = os.getenv("TESTING", "")
+    is_testing = testing_val and testing_val.lower() not in ("0", "false", "no", "off")
+    if is_testing:
+        SECRET_KEY = "test_secret_key_dummy"
+    else:
+        raise ValueError("SECRET_KEY environment variable not set")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

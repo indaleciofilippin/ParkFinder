@@ -1,0 +1,172 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+      - main 
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  GCP_REGION: us-central1
+  BACKEND_IMAGE_NAME: parkfinder-backend
+  ANPR_IMAGE_NAME: parkfinder-anpr
+
+jobs:
+  test-backend:
+    name: Run Backend Unit Tests (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          cd Backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        env:
+          TESTING: '1'
+        run: |
+          cd Backend
+          python -m unittest discover -s tests -p "test_*.py"
+
+  test-frontend:
+    name: Run Frontend Tests (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './Frontend/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd Frontend
+          npm install --legacy-peer-deps
+
+      - name: Run Tests
+        env:
+          TZ: 'America/Argentina/Buenos_Aires'
+        run: |
+          cd Frontend
+          npm run test -- --coverage
+
+  build-and-push:
+    name: Build & Push to Docker Hub
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE_NAME }}:dev-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push ANPR Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./LicensePlates-ANPR
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.ANPR_IMAGE_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.ANPR_IMAGE_NAME }}:dev-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-production:
+    name: Deploy to Google Cloud Run
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy ANPR to Cloud Run
+        id: deploy-anpr
+        run: |
+          gcloud run deploy ${{ env.ANPR_IMAGE_NAME }} \
+            --image ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.ANPR_IMAGE_NAME }}:dev-${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --port 8001 \
+            --memory 4Gi \
+            --cpu 1 \
+            --max-instances 1 \
+            --min-instances 0 \
+            --timeout 300 \
+            --concurrency 50 \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+            
+      - name: Get ANPR URL
+        id: anpr-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.ANPR_IMAGE_NAME }} --platform managed --region ${{ env.GCP_REGION }} --format 'value(status.url)' --project ${{ secrets.GCP_PROJECT_ID }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Deploy Backend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.BACKEND_IMAGE_NAME }} \
+            --image ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE_NAME }}:dev-${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --port 8000 \
+            --memory 2Gi \
+            --cpu 1 \
+            --max-instances 1 \
+            --min-instances 0 \
+            --timeout 300 \
+            --concurrency 50 \
+            --set-env-vars "TESTING=,ANPR_API_URL=${{ steps.anpr-url.outputs.url }},REBILL_API_KEY=${{ secrets.REBILL_API_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},ALGORITHM=${{ secrets.ALGORITHM || 'HS256' }}" \
+            --project ${{ secrets.GCP_PROJECT_ID }}

@@ -15,10 +15,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.indalecio.parkfinder"
+      "bundleIdentifier": "com.indalecio.parkfinder",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación requiere acceso a la cámara para escanear patentes de vehículos."
+      }
     },
     "android": {
       "package": "com.indalecio.parkfinder",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB9nvZ8Vl4aoHzdkZHWLuF2G-1n2jkzl0Q"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,7 +40,17 @@
     "plugins": [
       "expo-secure-store",
       "expo-localization",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación.",
+          "locationAlwaysPermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación.",
+          "locationWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

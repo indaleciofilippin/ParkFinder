@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey, Numeric, TIMESTAMP
 from .base_model import BaseModel
 
 class PaymentTransaction(BaseModel):
@@ -7,6 +7,6 @@ class PaymentTransaction(BaseModel):
     id_invoice = Column(Integer, ForeignKey("invoice.id_invoice"), nullable=False)
     gateway_reference = Column(String(100), nullable=False)
     payment_method = Column(String(100), nullable=False)
-    amount_attemped = Column(Numeric(10,2), nullable=False)
+    amount_attempted = Column(Numeric(10,2), nullable=False)
     status = Column(String(8), nullable=False)
-    attemped_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    attempted_at = Column(TIMESTAMP(timezone=True), nullable=False)

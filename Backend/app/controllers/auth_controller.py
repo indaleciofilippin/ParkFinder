@@ -27,6 +27,19 @@ def get_db():
         db.close()
 
 
+def validate_password_strength(v: str) -> None:
+    if not v or len(v) < 8:
+        raise ValueError("La contraseña debe tener al menos 8 caracteres")
+    if not any(c.isupper() for c in v):
+        raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+    if not any(c.islower() for c in v):
+        raise ValueError("La contraseña debe contener al menos una letra minúscula")
+    if not any(c.isdigit() for c in v):
+        raise ValueError("La contraseña debe contener al menos un número")
+    if not any(not c.isalnum() for c in v):
+        raise ValueError("La contraseña debe contener al menos un carácter especial (ej: !, @, #, $, %)")
+
+
 class UserProfileView(BaseModel):
     id_profile: int
     first_name: str
@@ -68,6 +81,12 @@ class UserUpdate(BaseModel):
     def role_length(cls, v):
         if v is not None and not (1 <= len(v) <= 10):
             raise ValueError("role length must be 1-10 chars")
+        return v
+
+    @validator("password")
+    def password_val(cls, v):
+        if v is not None:
+            validate_password_strength(v)
         return v
 
 @router.get("/users")
@@ -261,8 +280,7 @@ class RegisterRequest(BaseModel):
     def password_val(cls, v, values):
         provider = values.get("auth_provider")
         if provider == "local":
-            if not v or len(v) < 8:
-                raise ValueError("Password must be at least 8 characters")
+            validate_password_strength(v)
         return v
 
     @validator("provider_id")
