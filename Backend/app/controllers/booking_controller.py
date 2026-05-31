@@ -266,12 +266,17 @@ def scan_plate(file: UploadFile = File(...)):
             import requests
             
             # Intentar primero con la red interna de Docker ('anpr'), el host de la Mac, y luego con 'localhost'
-            urls_to_try = [
+            anpr_env_url = os.getenv("ANPR_API_URL")
+            urls_to_try = []
+            if anpr_env_url:
+                urls_to_try.append(f"{anpr_env_url.rstrip('/')}/scan")
+            
+            urls_to_try.extend([
                 "http://anpr:8001/scan",
                 "http://host.docker.internal:8001/scan",
                 "http://192.168.1.6:8001/scan",
                 "http://localhost:8001/scan"
-            ]
+            ])
             response_json = None
             last_err = None
             
