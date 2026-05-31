@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import Constants from 'expo-constants';
 import { theme } from '../../theme/theme';
 import { vehicleApi, bookingApi } from '../../services/api';
 import { i18n } from '../../i18n';
@@ -20,7 +19,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
   const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Arrival Time state (The only one that matters for the user)
   const [arrivalTime, setArrivalTime] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
@@ -180,7 +179,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* Summary Card - Professional & Clear */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
@@ -192,9 +191,9 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
               <Text style={styles.summaryAddress}>{parking.total_available} lugares libres ahora</Text>
             </View>
           </View>
-          
+
           <View style={styles.summaryDivider} />
-          
+
           <View style={styles.policyRow}>
             <View style={styles.policyItem}>
               <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
@@ -261,10 +260,10 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
           <View style={styles.quickOptions}>
             <View style={styles.optionRow}>
               {[0, 15, 30, 45].map((m) => (
-                <TouchableOpacity 
-                  key={m} 
+                <TouchableOpacity
+                  key={m}
                   style={[
-                    styles.miniOption, 
+                    styles.miniOption,
                     Math.abs(arrivalTime.getTime() - (new Date().getTime() + m * 60000)) < 120000 && styles.activeMiniOption
                   ]}
                   onPress={() => setTimeQuickly(m)}
@@ -282,7 +281,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
         <Text style={styles.sectionHeader}>Vehículo</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleScroll} contentContainerStyle={{ paddingRight: 40 }}>
           {vehicles.map((v) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               key={v.id_vehicle}
               style={[styles.vehicleCard, selectedVehicle === v.id_vehicle && styles.selectedVehicle]}
               onPress={() => setSelectedVehicle(v.id_vehicle)}
@@ -300,16 +299,16 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
         <Text style={styles.sectionHeader}>Tipo de lugar</Text>
         <View style={styles.categoriesGrid}>
           {parking.categories?.map((cat: any) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               key={cat.id_category}
               style={[styles.catCard, selectedCategory?.id_category === cat.id_category && styles.selectedCat]}
               onPress={() => setSelectedCategory(cat)}
             >
               <View style={styles.catHeader}>
-                <Ionicons 
-                  name={cat.name.toLowerCase().includes('moto') ? 'bicycle' : 'car'} 
-                  size={20} 
-                  color={selectedCategory?.id_category === cat.id_category ? 'white' : theme.colors.textSecondary} 
+                <Ionicons
+                  name={cat.name.toLowerCase().includes('moto') ? 'bicycle' : 'car'}
+                  size={20}
+                  color={selectedCategory?.id_category === cat.id_category ? 'white' : theme.colors.textSecondary}
                 />
                 <Text style={[styles.catPrice, selectedCategory?.id_category === cat.id_category && { color: 'white' }]}>
                   {formatCurrency(Math.round(baseRate * Number(cat.price_multiplier || 1)))}/h
@@ -322,28 +321,28 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
 
         {/* Payment Integration */}
         <Text style={styles.sectionHeader}>Medio de Pago</Text>
-        
+
         {savedPaymentInfo?.has_saved_card ? (
           <View style={styles.glassSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
               <Ionicons name="shield-checkmark" size={20} color="#00E676" />
               <Text style={{ color: '#00E676', fontWeight: '800', fontSize: 13, marginLeft: 8, letterSpacing: 0.5 }}>TARJETA VINCULADA</Text>
             </View>
-            
-            <View style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-              paddingVertical: 14, 
-              paddingHorizontal: 18, 
-              borderRadius: 16, 
-              borderWidth: 1, 
-              borderColor: 'rgba(255, 255, 255, 0.08)' 
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              paddingVertical: 14,
+              paddingHorizontal: 18,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.08)'
             }}>
-              <View style={{ 
-                width: 44, height: 30, borderRadius: 6, 
-                backgroundColor: 'rgba(0, 158, 227, 0.15)', 
-                justifyContent: 'center', alignItems: 'center', marginRight: 14 
+              <View style={{
+                width: 44, height: 30, borderRadius: 6,
+                backgroundColor: 'rgba(0, 158, 227, 0.15)',
+                justifyContent: 'center', alignItems: 'center', marginRight: 14
               }}>
                 <Ionicons name="card" size={20} color="#009EE3" />
               </View>
@@ -373,7 +372,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                 Ingresa tu tarjeta para el cobro automático. La información se procesa de forma segura mediante Rebill.
               </Text>
             </View>
-            
+
             {rebillToken ? (
               <View style={{ padding: 20, alignItems: 'center', backgroundColor: 'rgba(36, 198, 165, 0.1)', borderRadius: 12, margin: 16 }}>
                 <Ionicons name="checkmark-circle" size={48} color="#24C6A5" />
@@ -544,7 +543,6 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                         console.log("Ignored non-JSON webview message:", event.nativeEvent.data);
                       }
                     }}
-                    scrollEnabled={false}
                   />
                 )}
               </View>
@@ -568,7 +566,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.confirmButton, isSubmitting && { opacity: 0.7 }]}
           onPress={handleCreateBooking}
           disabled={isSubmitting}

@@ -185,6 +185,8 @@ class BookingService:
 
             db.commit()
             db.refresh(booking)
+            v = db.query(Vehicle).filter_by(id_vehicle=booking.id_vehicle).first()
+            booking.license_plate = v.license_plate if v else "Unknown"
             return booking
 
         except Exception as e:
@@ -193,11 +195,19 @@ class BookingService:
 
     @staticmethod
     def get_user_bookings(db: Session, id_profile: int) -> List[Booking]:
-        return db.query(Booking).filter_by(id_profile=id_profile).all()
+        bookings = db.query(Booking).filter_by(id_profile=id_profile).all()
+        for b in bookings:
+            v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
+            b.license_plate = v.license_plate if v else "Unknown"
+        return bookings
 
     @staticmethod
     def get_parking_bookings(db: Session, id_parking: int) -> List[Booking]:
-        return db.query(Booking).filter_by(id_parking=id_parking).all()
+        bookings = db.query(Booking).filter_by(id_parking=id_parking).all()
+        for b in bookings:
+            v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
+            b.license_plate = v.license_plate if v else "Unknown"
+        return bookings
 
     @staticmethod
     def update_booking_status(db: Session, id_booking: int, status: str, id_profile: Optional[int] = None):
@@ -232,6 +242,8 @@ class BookingService:
         db.add(history)
         db.commit()
         db.refresh(booking)
+        v = db.query(Vehicle).filter_by(id_vehicle=booking.id_vehicle).first()
+        booking.license_plate = v.license_plate if v else "Unknown"
         return {"booking": booking, "message": msg}
 
     @staticmethod

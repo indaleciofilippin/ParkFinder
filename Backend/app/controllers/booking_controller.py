@@ -55,6 +55,7 @@ class BookingResponse(BaseModel):
     expected_end_time: datetime
     applied_rate: float
     current_status: str
+    license_plate: Optional[str] = None
 
     class Config:
         from_attributes = True
