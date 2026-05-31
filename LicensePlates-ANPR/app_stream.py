@@ -533,19 +533,3 @@ elif not st.session_state.streaming:
             "https://via.placeholder.com/640x480/f0f0f0/666666?text=Camera+Feed+Will+Appear+Here",
             caption="Waiting for stream to start...",
         )
-
-# Footer with enhanced information
-st.markdown("---")
-
-# Authors section
-st.markdown(
-    """
-### 👥 **Authors**
-This project was developed by:
-- **Giovanni Borgogno**
-- **Maximo Lucero Ruiz**
-- **Santiago Quesada**
-- **Felipe Cañas**
-- **Paolo Cetti**
-"""
-)
