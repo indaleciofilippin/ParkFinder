@@ -1,6 +1,14 @@
 import * as SecureStore from 'expo-secure-store';
+// @ts-ignore
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.23:8000/api/v1';
+// Detectar dinámicamente la IP local del servidor de desarrollo de Expo
+let devIp = 'localhost';
+if (Constants.expoConfig?.hostUri) {
+  devIp = Constants.expoConfig.hostUri.split(':')[0];
+}
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || `http://${devIp}:8000/api/v1`;
 
 export const saveToken = async (key: string, value: string) => {
   try {
