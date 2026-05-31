@@ -166,7 +166,12 @@ export const HomeScreen = ({ navigation }: any) => {
             <>
               <ActionCard icon="map-outline" title="Ver Mapa" color="#667eea" onPress={() => navigation.navigate('MapSearch')} />
               <ActionCard icon="list-outline" title="Lista Cocheras" color="#00f2fe" onPress={() => navigation.navigate('FindParking')} />
-              <ActionCard icon="time-outline" title={i18n.t('bookings.title')} color="#f093fb" />
+              <ActionCard 
+                icon="time-outline" 
+                title={i18n.t('bookings.title')} 
+                color="#f093fb" 
+                onPress={() => navigation.navigate('MyBookings')}
+              />
             </>
           )}
 
@@ -184,16 +189,21 @@ export const HomeScreen = ({ navigation }: any) => {
                 title="Ganancias" 
                 color="#764ba2" 
               />
+              <ActionCard 
+                icon="list-outline" 
+                title="Reservas Recibidas" 
+                color="#FF8C00" 
+                onPress={() => navigation.navigate('OwnerBookings')}
+              />
+              <ActionCard 
+                icon="git-compare-outline" 
+                title="Simular Barrera" 
+                color="#FF3366" 
+                onPress={() => navigation.navigate('BarrierSimulator')} 
+              />
             </>
           )}
 
-          <ActionCard icon="wallet-outline" title="Billetera" color="#FF8C00" />
-          <ActionCard 
-            icon="git-compare-outline" 
-            title="Simular Barrera" 
-            color="#FF3366" 
-            onPress={() => navigation.navigate('BarrierSimulator')} 
-          />
           <ActionCard 
             icon="person-outline" 
             title={i18n.t('profile.title')} 

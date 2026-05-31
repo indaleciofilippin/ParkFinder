@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 // @ts-ignore
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Detectar dinámicamente la IP local del servidor de desarrollo de Expo
 let devIp = 'localhost';
@@ -12,7 +13,11 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || `http://${devIp}:8000/api/v1`
 
 export const saveToken = async (key: string, value: string) => {
   try {
-    await SecureStore.setItemAsync(key, value);
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value);
+    }
   } catch (error) {
     console.error('Error saving token', error);
   }
@@ -20,7 +25,11 @@ export const saveToken = async (key: string, value: string) => {
 
 export const getToken = async (key: string) => {
   try {
-    return await SecureStore.getItemAsync(key);
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    } else {
+      return await SecureStore.getItemAsync(key);
+    }
   } catch (error) {
     console.error('Error getting token', error);
     return null;
@@ -29,7 +38,11 @@ export const getToken = async (key: string) => {
 
 export const removeToken = async (key: string) => {
   try {
-    await SecureStore.deleteItemAsync(key);
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
   } catch (error) {
     console.error('Error removing token', error);
   }
@@ -271,6 +284,14 @@ export const bookingApi = {
     const response = await authenticatedFetch('/bookings/me');
     if (!response.ok) {
       throw new Error('No se pudieron obtener las reservas');
+    }
+    return response.json();
+  },
+
+  getParkingBookings: async (id_parking: number) => {
+    const response = await authenticatedFetch(`/bookings/parking/${id_parking}`);
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener las reservas de la cochera');
     }
     return response.json();
   },
