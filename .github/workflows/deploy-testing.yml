@@ -140,5 +140,5 @@ jobs:
             --min-instances 0 \
             --timeout 300 \
             --concurrency 50 \
-            --set-env-vars "TESTING=,ANPR_API_URL=${{ steps.anpr-url.outputs.url }},REBILL_API_KEY=${{ secrets.REBILL_API_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars "TESTING=,ANPR_API_URL=${{ steps.anpr-url.outputs.url }},REBILL_API_KEY=${{ secrets.REBILL_API_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},ALGORITHM=${{ secrets.ALGORITHM || 'HS256' }}" \
             --project ${{ secrets.GCP_PROJECT_ID }}
