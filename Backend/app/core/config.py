@@ -13,7 +13,8 @@ settings = Settings()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    if os.getenv("TESTING"):
+    testing_val = os.getenv("TESTING", "")
+    if testing_val and testing_val.lower() not in ("0", "false", "no", "off"):
         DATABASE_URL = "sqlite:///:memory:"
     else:
         raise ValueError("DATABASE_URL environment variable not set")
