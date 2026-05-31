@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -15,12 +14,14 @@ import {
   Platform,
   TextStyle
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../theme/theme';
 import { parkingApi, vehicleApi, bookingApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +40,13 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const [autoSync, setAutoSync] = useState(false);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string | null>(null);
   const [scanningPlate, setScanningPlate] = useState(false);
+
+  // Real-time Camera Scanner states
+  const [realtimeCameraActive, setRealtimeCameraActive] = useState(false);
+  const [isProcessingFrame, setIsProcessingFrame] = useState(false);
+  const [scanCooldown, setScanCooldown] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<any>(null);
 
   // Animated values
   const barrierRotation = useRef(new Animated.Value(0)).current; // 0 for closed (0 deg), 1 for open (-90 deg)
@@ -70,6 +78,109 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     fetchParkings();
     fetchVehicles();
   }, []);
+
+  const [laserAnim] = useState(new Animated.Value(0));
+
+  // Laser scanner animation loop
+  useEffect(() => {
+    if (realtimeCameraActive && isProcessingFrame && !scanCooldown) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(laserAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease)
+          }),
+          Animated.timing(laserAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease)
+          })
+        ])
+      ).start();
+    } else {
+      laserAnim.setValue(0);
+    }
+  }, [realtimeCameraActive, isProcessingFrame, scanCooldown]);
+
+  // Real-time camera scanning loop (every 2 seconds)
+  useEffect(() => {
+    if (!realtimeCameraActive || scanCooldown || isProcessingFrame || !selectedParking) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      if (isProcessingFrame || scanCooldown || !cameraRef.current) return;
+
+      try {
+        setIsProcessingFrame(true);
+        addLog('[LECTOR IA] Capturando fotograma de cámara en vivo...');
+        
+        // Take a picture silently (high compression)
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.3,
+          skipProcessing: true,
+        });
+
+        if (photo && photo.uri) {
+          addLog('[LECTOR IA] Analizando fotograma en microservicio de IA...');
+          const response = await bookingApi.scanBarrierPlateImage(photo.uri);
+          
+          if (response.success && response.plate) {
+            const detectedPlate = response.plate.toUpperCase();
+            setLicensePlate(detectedPlate);
+            addLog(`[LECTOR IA] ¡Patente detectada automáticamente!: "${detectedPlate}"`);
+            
+            // Pause scanning during validation and barrier operations
+            setScanCooldown(true);
+            
+            // Check plate and open barrier
+            await handleCheckPlate(detectedPlate);
+            
+            // Hold scanning for 8 seconds to allow the car to pass and barrier to close
+            setTimeout(() => {
+              setScanCooldown(false);
+              addLog('[LECTOR IA] Reanudando escaneo en tiempo real.');
+            }, 8000);
+          } else {
+            addLog('[LECTOR IA] No se detectaron patentes en el fotograma actual.');
+          }
+        }
+      } catch (err: any) {
+        console.error('[REALTIME CAMERA ERROR]', err);
+        addLog(`[LECTOR IA ERROR] Error al escanear fotograma: ${err.message || err}`);
+      } finally {
+        setIsProcessingFrame(false);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [realtimeCameraActive, scanCooldown, isProcessingFrame, selectedParking]);
+
+  const toggleRealtimeCamera = async () => {
+    if (!selectedParking) {
+      Alert.alert('Cochera Requerida', 'Por favor, selecciona una cochera antes de activar la cámara.');
+      return;
+    }
+
+    if (!realtimeCameraActive) {
+      if (!permission?.granted) {
+        const res = await requestPermission();
+        if (!res.granted) {
+          Alert.alert('Permiso Requerido', 'Debes permitir el acceso a la cámara para usar el escáner en tiempo real.');
+          return;
+        }
+      }
+      setRealtimeCameraActive(true);
+      setScanCooldown(false);
+      addLog('[LECTOR IA] Escáner en tiempo real HABILITADO 🎥');
+    } else {
+      setRealtimeCameraActive(false);
+      addLog('[LECTOR IA] Escáner en tiempo real DESHABILITADO 🛑');
+    }
+  };
 
   // Realtime Polling for IoT/AI camera scans
   useEffect(() => {
@@ -228,22 +339,23 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   };
 
   // Perform plate check and trigger barrier action
-  const handleCheckPlate = async () => {
+  const handleCheckPlate = async (overridePlate?: string) => {
     if (!selectedParking) {
       Alert.alert('Cochera Requerida', 'Por favor, selecciona una cochera para simular la barrera.');
       return;
     }
-    if (!licensePlate.trim()) {
+    const plateToCheck = overridePlate || licensePlate;
+    if (!plateToCheck.trim()) {
       Alert.alert('Patente Requerida', 'Por favor, ingresa una patente manualmente o selecciona un vehículo rápido.');
       return;
     }
 
     setLoading(true);
-    addLog(`[LECTOR CÁMARA] Patente detectada: "${licensePlate.toUpperCase()}" en ${selectedParking.name}`);
+    addLog(`[LECTOR CÁMARA] Patente detectada: "${plateToCheck.toUpperCase()}" en ${selectedParking.name}`);
     addLog('[SISTEMA] Consultando reservas en el servidor...');
 
     try {
-      const response = await bookingApi.checkBarrierPlate(selectedParking.id_parking, licensePlate);
+      const response = await bookingApi.checkBarrierPlate(selectedParking.id_parking, plateToCheck);
       
       if (response.status === 'allowed') {
         setLoading(false);
@@ -398,6 +510,52 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           </View>
         </View>
 
+        {/* Real-time Camera Preview Viewfinder */}
+        {realtimeCameraActive && (
+          <View style={styles.cameraCard}>
+            <View style={styles.cameraCardHeader}>
+              <Ionicons name="scan-outline" size={16} color="#00f2fe" style={{ marginRight: 6 }} />
+              <Text style={styles.cameraSectionLabel}>ESCANEO DE PATENTE EN VIVO (IA)</Text>
+            </View>
+            <View style={styles.cameraContainer}>
+              <CameraView
+                style={StyleSheet.absoluteFillObject}
+                ref={cameraRef}
+                facing="back"
+              />
+              {/* Target guidelines frame */}
+              <View style={styles.scannerOverlay}>
+                <View style={styles.scanTargetBox}>
+                  <View style={[styles.corner, styles.cornerTL]} />
+                  <View style={[styles.corner, styles.cornerTR]} />
+                  <View style={[styles.corner, styles.cornerBL]} />
+                  <View style={[styles.corner, styles.cornerBR]} />
+                  {isProcessingFrame && !scanCooldown && (
+                    <Animated.View style={[
+                      styles.laserScanLine,
+                      {
+                        transform: [{
+                          translateY: laserAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 120]
+                          })
+                        }]
+                      }
+                    ]} />
+                  )}
+                </View>
+                <Text style={styles.cameraInstructions}>
+                  {scanCooldown 
+                    ? "⏱️ Vehículo pasando... Barrera en proceso" 
+                    : isProcessingFrame 
+                      ? "⚡ Analizando patente..." 
+                      : "Apunta el recuadro a la patente del vehículo"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Real-time AI Sync Toggle Option */}
         <View style={[
           styles.syncCard,
@@ -529,24 +687,24 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
           {/* Cámara Scan Button */}
           <TouchableOpacity
-            style={[styles.scanCameraBtn, (scanningPlate || loading) && styles.scanCameraBtnDisabled]}
-            onPress={handleScanPlate}
-            disabled={scanningPlate || loading}
+            style={styles.scanCameraBtn}
+            onPress={toggleRealtimeCamera}
           >
             <LinearGradient
-              colors={['#8a2be2', '#da70d6']}
+              colors={realtimeCameraActive ? ['#ff4e50', '#f9d423'] : ['#8a2be2', '#da70d6']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
             >
-              {scanningPlate ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="camera" size={22} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.scanCameraBtnText}>ESCANEAR CON CÁMARA MÓVIL (IA)</Text>
-                </>
-              )}
+              <Ionicons 
+                name={realtimeCameraActive ? "stop-circle" : "camera"} 
+                size={22} 
+                color="#fff" 
+                style={{ marginRight: 8 }} 
+              />
+              <Text style={styles.scanCameraBtnText}>
+                {realtimeCameraActive ? "DESACTIVAR CÁMARA EN VIVO" : "ACTIVAR CÁMARA EN VIVO (IA REALTIME)"}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -1059,5 +1217,101 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontSize: 11,
     lineHeight: 14,
+  },
+  cameraCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 20,
+    gap: 12,
+  },
+  cameraCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cameraSectionLabel: {
+    color: '#8a9ab0',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.8,
+  },
+  cameraContainer: {
+    height: 240,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.15)',
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanTargetBox: {
+    width: 220,
+    height: 120,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  laserScanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 2,
+    backgroundColor: '#00f2fe',
+    shadowColor: '#00f2fe',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  cameraInstructions: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  corner: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderColor: '#00f2fe',
+  },
+  cornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  cornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
   }
 });

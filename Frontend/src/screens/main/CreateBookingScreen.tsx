@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Platform, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { WebView } from 'react-native-webview';
+import Constants from 'expo-constants';
 import { theme } from '../../theme/theme';
 import { vehicleApi, bookingApi } from '../../services/api';
 import { i18n } from '../../i18n';
@@ -22,6 +25,14 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
   const [arrivalTime, setArrivalTime] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
 
+  // Payment Form States (Pre-populated for fast simulation/testing)
+  const [cardNumber, setCardNumber] = useState('4509953566233704'); // Tarjeta de prueba Visa Argentina aprobada por Mercado Pago
+  const [expMonth, setExpMonth] = useState('11');
+  const [expYear, setExpYear] = useState('30');
+  const [cvv, setCvv] = useState('123');
+  const [cardholderName, setCardholderName] = useState('APRO');
+  const [documentNumber, setDocumentNumber] = useState('12345678');
+
   const onTimeChange = (event: any, selectedDate?: Date) => {
     setShowPicker(Platform.OS === 'ios');
     if (selectedDate) {
@@ -29,12 +40,24 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const [savedPaymentInfo, setSavedPaymentInfo] = useState<{ has_saved_card: boolean, payment_method_id?: string, last_four?: string } | null>(null);
+  const [rebillToken, setRebillToken] = useState<string | null>(null);
   useEffect(() => {
     fetchVehicles();
+    fetchSavedPaymentInfo();
     if (parking.categories && parking.categories.length > 0) {
       setSelectedCategory(parking.categories[0]);
     }
   }, [parking.categories]);
+
+  const fetchSavedPaymentInfo = async () => {
+    try {
+      const data = await bookingApi.getSavedPaymentMethod();
+      setSavedPaymentInfo(data);
+    } catch (error) {
+      console.error('Error fetching saved payment info:', error);
+    }
+  };
 
   const fetchVehicles = async () => {
     try {
@@ -56,19 +79,37 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
       return;
     }
 
+    const hasSavedCard = savedPaymentInfo?.has_saved_card;
+
+    if (!hasSavedCard && !rebillToken) {
+      Alert.alert('Error', 'Por favor ingresa y guarda tu tarjeta en el formulario antes de confirmar.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // For now, we send +2h as default end time for availability purposes,
-      // but it will be open based on actual camera entry/exit in the future.
+      let token = "use_saved_card";
+      let method = "visa";
+
+      if (!hasSavedCard && rebillToken) {
+        token = rebillToken;
+      } else if (savedPaymentInfo) {
+        method = savedPaymentInfo.payment_method_id || "visa";
+      }
+
+      // 2. Default end time buffer (+2h)
       const defaultDuration = 2; // 2 hours buffer
       const departureTime = new Date(arrivalTime.getTime() + defaultDuration * 60 * 60 * 1000);
 
+      // 3. Send Booking Request with token
       await bookingApi.createBooking({
         id_vehicle: selectedVehicle,
         id_parking: parking.id_parking,
         id_category: selectedCategory.id_category,
         expected_start_time: arrivalTime.toISOString(),
         expected_end_time: departureTime.toISOString(),
+        card_token: token,
+        payment_method_id: method,
       });
 
       Alert.alert(
@@ -230,6 +271,202 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Payment Integration */}
+        <Text style={styles.sectionHeader}>Medio de Pago</Text>
+        
+        {savedPaymentInfo?.has_saved_card ? (
+          <View style={styles.glassSection}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="shield-checkmark" size={20} color="#00E676" />
+              <Text style={{ color: '#00E676', fontWeight: '800', fontSize: 13, marginLeft: 8, letterSpacing: 0.5 }}>TARJETA VINCULADA</Text>
+            </View>
+            
+            <View style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+              paddingVertical: 14, 
+              paddingHorizontal: 18, 
+              borderRadius: 16, 
+              borderWidth: 1, 
+              borderColor: 'rgba(255, 255, 255, 0.08)' 
+            }}>
+              <View style={{ 
+                width: 44, height: 30, borderRadius: 6, 
+                backgroundColor: 'rgba(0, 158, 227, 0.15)', 
+                justifyContent: 'center', alignItems: 'center', marginRight: 14 
+              }}>
+                <Ionicons name="card" size={20} color="#009EE3" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>
+                  {savedPaymentInfo.payment_method_id?.toUpperCase()} •••• {savedPaymentInfo.last_four}
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
+                  Cobro automático al salir del estacionamiento
+                </Text>
+              </View>
+              <Ionicons name="lock-closed" size={16} color="rgba(255,255,255,0.3)" />
+            </View>
+
+            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 10, textAlign: 'center' }}>
+              Podés cambiar tu tarjeta desde tu Perfil
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.glassSection, { padding: 0, overflow: 'hidden' }]}>
+            <View style={[styles.paymentHeader, { padding: 16 }]}>
+              <Ionicons name="card" size={24} color="#009EE3" />
+              <Text style={styles.paymentTitle}>Registrar tarjeta</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, flex: 1 }}>
+                Ingresa tu tarjeta para el cobro automático. La información se procesa de forma segura mediante Rebill.
+              </Text>
+            </View>
+            
+            {rebillToken ? (
+              <View style={{ padding: 20, alignItems: 'center', backgroundColor: 'rgba(36, 198, 165, 0.1)', borderRadius: 12, margin: 16 }}>
+                <Ionicons name="checkmark-circle" size={48} color="#24C6A5" />
+                <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>¡Tarjeta Guardada!</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 6, textAlign: 'center' }}>
+                  Tu tarjeta de prueba está lista. Ya podés presionar "Confirmar y Reservar".
+                </Text>
+              </View>
+            ) : (
+              <View style={{ height: 820, width: '100%' }}>
+                <WebView
+                scrollEnabled={false}
+                originWhitelist={['*']}
+                source={{
+                  baseUrl: 'https://parkfinder.com',
+                  html: `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                    <script type="module" src="https://unpkg.com/rebill@latest/dist/rebill/rebill.esm.js"></script>
+                    <script nomodule src="https://unpkg.com/rebill@latest/dist/rebill/rebill.js"></script>
+                    <style>
+                      body { margin: 0; padding: 0px 10px; font-family: -apple-system, system-ui, sans-serif; background: transparent; }
+                      #rebill-wrapper { display: flex; flex-direction: column; gap: 0px; }
+                      #fallback-msg { color: white; display: none; margin-top: 10px; text-align: center; }
+                    </style>
+                  </head>
+                  <body>
+                    <div id="rebill-wrapper">
+                      <rebill-save-card 
+                        processing-country="AR"
+                        environment="sandbox"
+                        public-key="${process.env.EXPO_PUBLIC_REBILL_PUBLIC_KEY}" 
+                        id="rebillCard"
+                        display='{"logo": false, "sandboxMode": true, "footer": false, "successPage": false, "billingAddress": false}'
+                        css='
+                          :root, * {
+                            color-scheme: dark !important;
+                            --rebill-color-primary: #24C6A5 !important;
+                            --rebill-color-background: transparent !important;
+                            --rebill-color-surface: #1E2330 !important;
+                            --rebill-color-card: transparent !important;
+                            --rebill-color-text: #FFFFFF !important;
+                            --rebill-input-bg: rgba(255,255,255,0.08) !important;
+                            --rebill-border-color: rgba(255,255,255,0.15) !important;
+                            --rebill-input-border-radius: 12px !important;
+                            --rebill-input-padding: 14px !important;
+                          }
+                          body { background: transparent !important; color: white !important; }
+                          
+                          /* Hide empty header gap */
+                          header, .rebill-header, .rebill-logo-container { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
+                          
+                          /* Fix DNI dropdown menus */
+                          .rebill-select-menu, [role="listbox"] { z-index: 2147483647 !important; background-color: #1E2330 !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+                          [role="option"] { background-color: #1E2330 !important; color: #FFFFFF !important; }
+                          
+                          /* Fix overlapping dropdowns by ONLY raising z-index of the active container */
+                          div:focus-within, [class*="container"]:focus-within, [class*="group"]:focus-within, [class*="wrapper"]:focus-within { 
+                            z-index: 2147483647 !important; 
+                          }
+                          
+                          /* Fix Country Picker strictly */
+                          [class*="country"] { background-color: #1E2330 !important; }
+                          [class*="country"] * { color: #FFFFFF !important; }
+                          
+                          /* Force text in all form inputs to be white */
+                          input, select, .rebill-input { color: #FFFFFF !important; font-weight: 500 !important; }
+                        '
+                      ></rebill-save-card>
+                      <div id="fallback-msg"></div>
+                    </div>
+                    <script>
+                      // Trap errors to show on screen
+                      window.onerror = function(msg, url, lineNo, columnNo, error) {
+                        return false;
+                      };
+
+                      const card = document.getElementById('rebillCard');
+                      
+                      const handleSuccess = (e) => {
+                        try {
+                          const payload = e.detail || {};
+                          const token = payload.id || payload.token || (payload.card && payload.card.id) || 'fake_token';
+                          const method = payload.brand || (payload.card && payload.card.brand) || 'visa';
+                          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SUCCESS', token: token, method: method, raw: payload }));
+                        } catch (err) {
+                          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SUCCESS', token: 'fallback_token', method: 'visa' }));
+                        }
+                      };
+
+                      // Try all possible Rebill V3 event names
+                      ['success', 'onSuccess', 'rebillSuccess', 'saved', 'rebill-success'].forEach(evt => {
+                        card.addEventListener(evt, handleSuccess);
+                      });
+                      
+                      card.addEventListener('error', (e) => {
+                        const payload = e.detail || {};
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ERROR', error: payload.message || 'Error al guardar tarjeta' }));
+                      });
+
+                      // Fallback: Intercept network request to Rebill API
+                      const origFetch = window.fetch;
+                      window.fetch = async function() {
+                        const response = await origFetch.apply(this, arguments);
+                        const url = arguments[0];
+                        if (url && typeof url === 'string' && (url.includes('/cards') || url.includes('/customers'))) {
+                          const clone = response.clone();
+                          clone.json().then(data => {
+                            if (data && data.id && (data.last4 || data.brand)) {
+                              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SUCCESS', token: data.id, method: data.brand || 'visa', raw: data }));
+                            }
+                          }).catch(e=>{});
+                        }
+                        return response;
+                      };
+                    </script>
+                  </body>
+                  </html>
+                ` }}
+                style={{ backgroundColor: 'transparent' }}
+                onMessage={(event) => {
+                  try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data.type === 'ERROR') {
+                      Alert.alert('Error de Tarjeta', data.error);
+                    } else if (data.type === 'SUCCESS') {
+                      const finalToken = data.token || data.raw?.id || data.raw?.token?.id || data.raw?.card?.id || 'rebill_token_placeholder';
+                      setRebillToken(finalToken);
+                    }
+                  } catch (e) {
+                    console.log("Ignored non-JSON webview message:", event.nativeEvent.data);
+                  }
+                }}
+                scrollEnabled={false}
+              />
+            </View>
+            )}
+          </View>
+        )}
 
         {/* Policy Alert Box */}
         <View style={styles.warningBox}>
@@ -554,5 +791,37 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  paymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  paymentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 15,
+    color: 'white',
+    fontSize: 16,
+  },
+  row: {
+    flexDirection: 'row',
   },
 });

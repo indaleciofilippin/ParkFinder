@@ -44,6 +44,9 @@ COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 COPY --chown=appuser:appuser . .
 
 EXPOSE 8501
+EXPOSE 8001
+
+RUN chmod +x start.sh
 
 CMD ["streamlit", "run", "app_stream.py", \
      "--server.port", "8501", \

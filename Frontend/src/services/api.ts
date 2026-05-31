@@ -244,7 +244,9 @@ export const bookingApi = {
     id_parking: number; 
     id_category: number; 
     expected_start_time: string; 
-    expected_end_time: string; 
+    expected_end_time: string;
+    card_token: string;
+    payment_method_id: string;
   }) => {
     const response = await authenticatedFetch('/bookings/', {
       method: 'POST',
@@ -272,6 +274,14 @@ export const bookingApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.detail || 'Error al actualizar el estado de la reserva');
+    }
+    return response.json();
+  },
+
+  getSavedPaymentMethod: async () => {
+    const response = await authenticatedFetch('/bookings/payment-method/saved');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el método de pago guardado');
     }
     return response.json();
   },
