@@ -123,6 +123,10 @@ export const useSocialAuth = () => {
 
   // === APPLE AUTH LOGIC ===
   const signInWithApple = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('No soportado', 'El inicio de sesión con Apple no está soportado en la versión Web actual.');
+      return;
+    }
     setIsAppleLoading(true);
     try {
       const credential = await AppleAuthentication.signInAsync({
