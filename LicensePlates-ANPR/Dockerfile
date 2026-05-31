@@ -29,9 +29,15 @@ ENV PATH=/home/appuser/.local/bin:$PATH
 
 WORKDIR /app
 
-# Install minimal system libraries for OpenCV/Python runtime
+# Install system libraries for OpenCV/Python runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
+    libgl1 \
+    libxcb1 \
+    libx11-xcb1 \
+    libxext6 \
+    libxrender1 \
+    libx11-6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Run as non-privileged security user
