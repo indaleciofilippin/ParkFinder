@@ -277,23 +277,30 @@ def scan_plate(file: UploadFile = File(...)):
                 "http://192.168.1.6:8001/scan",
                 "http://localhost:8001/scan"
             ])
+            import time
             response_json = None
             last_err = None
             
             for url in urls_to_try:
-                try:
-                    print(f"📡 [BACKEND] Enviando imagen a microservicio: {url}")
-                    with open(temp_file_path, "rb") as f:
-                        response = requests.post(url, files={"file": (file.filename, f, file.content_type)}, timeout=5)
-                    if response.status_code == 200:
-                        response_json = response.json()
-                        break
-                    else:
-                        last_err = f"Status {response.status_code}: {response.text}"
-                        print(f"⚠️ [BACKEND] Error de respuesta de {url}: {last_err}")
-                except Exception as ex:
-                    last_err = str(ex)
-                    print(f"⚠️ [BACKEND] Error de conexión a {url}: {last_err}")
+                for attempt in range(1, 4):
+                    try:
+                        print(f"📡 [BACKEND] Enviando imagen a microservicio: {url} (Intento {attempt}/3)")
+                        with open(temp_file_path, "rb") as f:
+                            response = requests.post(url, files={"file": (file.filename, f, file.content_type)}, timeout=8)
+                        if response.status_code == 200:
+                            response_json = response.json()
+                            break
+                        else:
+                            last_err = f"Status {response.status_code}: {response.text}"
+                            print(f"⚠️ [BACKEND] Error de respuesta de {url} (Intento {attempt}): {last_err}")
+                    except Exception as ex:
+                        last_err = str(ex)
+                        print(f"⚠️ [BACKEND] Error de conexión a {url} (Intento {attempt}): {last_err}")
+                    
+                    if attempt < 3:
+                        time.sleep(1.5)
+                if response_json:
+                    break
                     
             if not response_json:
                 raise HTTPException(status_code=500, detail=f"No se pudo conectar al microservicio de ANPR: {last_err}")
