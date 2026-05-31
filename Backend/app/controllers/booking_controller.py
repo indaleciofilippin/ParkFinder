@@ -90,6 +90,52 @@ def create_booking(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+@router.get("/payment-method/saved")
+def get_saved_payment_method(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    id_profile = current_user.get("id_profile")
+    if id_profile is None:
+        raise HTTPException(status_code=401, detail="Profile ID not found in token")
+        
+    from app.models.payment_transaction import PaymentTransaction as PTModel
+    from app.models.invoice import Invoice as InvModel
+    from app.models.booking import Booking as BookModel
+    
+    last_tx = db.query(PTModel).join(InvModel).filter(
+        InvModel.id_booking.in_(
+            db.query(BookModel.id_booking).filter(BookModel.id_profile == id_profile)
+        ),
+        PTModel.gateway_reference != "error"
+    ).order_by(PTModel.id_transaction.desc()).first()
+    
+    if last_tx and "|" in last_tx.gateway_reference:
+        parts = last_tx.gateway_reference.split("|")
+        customer_id = parts[0]
+        card_id = parts[1]
+        payment_method_id = parts[2] if len(parts) > 2 else "visa"
+        
+        # Get card details from Mercado Pago (last 4 digits and exact brand)
+        try:
+            from app.services.payment_service import PaymentService
+            ps = PaymentService()
+            card_res = ps.sdk.card().get(customer_id, card_id)
+            card_data = card_res.get("response", {})
+            last_four = card_data.get("last_four_digits", "8881")
+            payment_method_id = card_data.get("payment_method", {}).get("id", payment_method_id)
+        except Exception as e:
+            print(f"⚠️ Error fetching card details from MP: {e}")
+            last_four = "8881" # Fallback
+            
+        return {
+            "has_saved_card": True,
+            "payment_method_id": payment_method_id,
+            "last_four": last_four
+        }
+    
+    return {"has_saved_card": False}
+
 @router.get("/me", response_model=List[BookingResponse])
 def get_my_bookings(
     db: Session = Depends(get_db), 
@@ -213,14 +259,49 @@ def scan_plate(file: UploadFile = File(...)):
             os.path.dirname(__file__), "../../../LicensePlates-ANPR/scan_image.py"
         ))
         
-        if not os.path.exists(python_path):
-            raise HTTPException(status_code=500, detail=f"Venv python interpreter not found at: {python_path}")
+        # Si no existe el intérprete local o el script (caso típico de Docker),
+        # usamos el microservicio HTTP de ANPR.
+        if not os.path.exists(python_path) or not os.path.exists(script_path):
+            print("📡 [BACKEND] Entorno local ANPR no detectado. Intentando conectar al microservicio HTTP de ANPR...")
+            import requests
             
-        if not os.path.exists(script_path):
-            raise HTTPException(status_code=500, detail=f"ANPR scan script not found at: {script_path}")
+            # Intentar primero con la red interna de Docker ('anpr'), el host de la Mac, y luego con 'localhost'
+            urls_to_try = [
+                "http://anpr:8001/scan",
+                "http://host.docker.internal:8001/scan",
+                "http://192.168.1.6:8001/scan",
+                "http://localhost:8001/scan"
+            ]
+            response_json = None
+            last_err = None
             
-        # Ejecutar el subproceso usando el intérprete de python del venv de la IA
-        print(f"📡 [BACKEND] Procesando imagen subida: '{file.filename}' con IA ANPR...")
+            for url in urls_to_try:
+                try:
+                    print(f"📡 [BACKEND] Enviando imagen a microservicio: {url}")
+                    with open(temp_file_path, "rb") as f:
+                        response = requests.post(url, files={"file": (file.filename, f, file.content_type)}, timeout=5)
+                    if response.status_code == 200:
+                        response_json = response.json()
+                        break
+                    else:
+                        last_err = f"Status {response.status_code}: {response.text}"
+                        print(f"⚠️ [BACKEND] Error de respuesta de {url}: {last_err}")
+                except Exception as ex:
+                    last_err = str(ex)
+                    print(f"⚠️ [BACKEND] Error de conexión a {url}: {last_err}")
+                    
+            if not response_json:
+                raise HTTPException(status_code=500, detail=f"No se pudo conectar al microservicio de ANPR: {last_err}")
+                
+            print(f"✅ [BACKEND] IA ANPR por HTTP completada exitosamente. Patente: {response_json.get('best_match')}")
+            return {
+                "success": response_json.get("success", False),
+                "plate": response_json.get("best_match"),
+                "plates": response_json.get("plates", [])
+            }
+            
+        # Ejecutar el subproceso usando el intérprete de python del venv de la IA (Fallback local en Host)
+        print(f"📡 [BACKEND] Procesando imagen subida en host: '{file.filename}' con IA ANPR...")
         result = subprocess.run(
             [python_path, script_path, temp_file_path],
             capture_output=True,

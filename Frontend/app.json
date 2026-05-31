@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.indalecio.parkfinder"
+      "bundleIdentifier": "com.indalecio.parkfinder",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación requiere acceso a la cámara para escanear patentes de vehículos."
+      }
     },
     "android": {
       "package": "com.indalecio.parkfinder",
