@@ -19,7 +19,7 @@ env:
 
 jobs:
   test-backend:
-    name: Run Unit Tests (CI)
+    name: Run Backend Unit Tests (CI)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -64,6 +64,8 @@ jobs:
           npm install --legacy-peer-deps
 
       - name: Run Tests
+        env:
+          TZ: 'America/Argentina/Buenos_Aires'
         run: |
           cd Frontend
           npm run test -- --coverage
