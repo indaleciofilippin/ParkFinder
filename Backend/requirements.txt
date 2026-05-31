@@ -12,3 +12,4 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 requests
+coverage==7.6.0

@@ -59,7 +59,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   // Animated values
   const barrierRotation = useRef(new Animated.Value(0)).current; // 0 for closed (0 deg), 1 for open (-90 deg)
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
-  const countdownTimer = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimer = useRef<any | null>(null);
 
   // Pulse animation for the barrier status light
   useEffect(() => {
@@ -203,7 +203,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         .catch(err => console.log('[IA LINK] Clean state reset:', err));
     }
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: any;
 
     const pollLatestEvent = async () => {
       try {
