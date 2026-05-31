@@ -48,9 +48,4 @@ EXPOSE 8001
 
 RUN chmod +x start.sh
 
-CMD ["streamlit", "run", "app_stream.py", \
-     "--server.port", "8501", \
-     "--server.address", "0.0.0.0", \
-     "--server.headless", "true", \
-     "--server.enableCORS", "false", \
-     "--server.enableXsrfProtection", "false"]
+CMD ["./start.sh"]
