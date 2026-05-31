@@ -3,6 +3,7 @@ FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PATH=/root/.local/bin:$PATH
 
 WORKDIR /app
 
