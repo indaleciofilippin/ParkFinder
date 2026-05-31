@@ -28,6 +28,14 @@ const { width } = Dimensions.get('window');
 export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+  
   // State
   const [parkings, setParkings] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -37,7 +45,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const [barrierState, setBarrierState] = useState<'closed' | 'open'>('closed');
   const [logs, setLogs] = useState<string[]>(['[SISTEMA] Listo. Selecciona una cochera e ingresa una patente.']);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
-  const [autoSync, setAutoSync] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string | null>(null);
   const [scanningPlate, setScanningPlate] = useState(false);
 
@@ -51,7 +59,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   // Animated values
   const barrierRotation = useRef(new Animated.Value(0)).current; // 0 for closed (0 deg), 1 for open (-90 deg)
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
-  const countdownTimer = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimer = useRef<any | null>(null);
 
   // Pulse animation for the barrier status light
   useEffect(() => {
@@ -161,7 +169,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
   const toggleRealtimeCamera = async () => {
     if (!selectedParking) {
-      Alert.alert('Cochera Requerida', 'Por favor, selecciona una cochera antes de activar la cámara.');
+      showAlert('Cochera Requerida', 'Por favor, selecciona una cochera antes de activar la cámara.');
       return;
     }
 
@@ -169,7 +177,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       if (!permission?.granted) {
         const res = await requestPermission();
         if (!res.granted) {
-          Alert.alert('Permiso Requerido', 'Debes permitir el acceso a la cámara para usar el escáner en tiempo real.');
+          showAlert('Permiso Requerido', 'Debes permitir el acceso a la cámara para usar el escáner en tiempo real.');
           return;
         }
       }
@@ -195,7 +203,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         .catch(err => console.log('[IA LINK] Clean state reset:', err));
     }
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: any;
 
     const pollLatestEvent = async () => {
       try {
@@ -292,7 +300,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        showAlert(
           'Permiso Denegado', 
           'Se requiere acceso a la cámara para poder tomar una foto y leer la patente de forma automática.'
         );
@@ -323,16 +331,16 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         const detectedPlate = response.plate.toUpperCase();
         setLicensePlate(detectedPlate);
         addLog(`[LECTOR IA] Patente identificada exitosamente: "${detectedPlate}"`);
-        Alert.alert('Patente Detectada', `Se ha leído la patente "${detectedPlate}" con éxito.`);
+        showAlert('Patente Detectada', `Se ha leído la patente "${detectedPlate}" con éxito.`);
       } else {
         addLog('[ERROR] No se detectó ninguna patente en la imagen. Intenta encuadrarla mejor.');
-        Alert.alert('Lectura Fallida', 'No se pudo detectar ninguna patente en la imagen. Asegúrate de enfocar bien la patente del vehículo.');
+        showAlert('Lectura Fallida', 'No se pudo detectar ninguna patente en la imagen. Asegúrate de enfocar bien la patente del vehículo.');
       }
     } catch (err: any) {
       console.error('[IA SCAN ERROR]', err);
       const errMsg = err.message || 'Error desconocido';
       addLog(`[ERROR] Fallo al procesar escaneo: ${errMsg}`);
-      Alert.alert('Error de Escaneo', `Ocurrió un error al enviar la imagen para procesar: ${errMsg}`);
+      showAlert('Error de Escaneo', `Ocurrió un error al enviar la imagen para procesar: ${errMsg}`);
     } finally {
       setScanningPlate(false);
     }
@@ -341,12 +349,12 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   // Perform plate check and trigger barrier action
   const handleCheckPlate = async (overridePlate?: string) => {
     if (!selectedParking) {
-      Alert.alert('Cochera Requerida', 'Por favor, selecciona una cochera para simular la barrera.');
+      showAlert('Cochera Requerida', 'Por favor, selecciona una cochera para simular la barrera.');
       return;
     }
     const plateToCheck = overridePlate || licensePlate;
     if (!plateToCheck.trim()) {
-      Alert.alert('Patente Requerida', 'Por favor, ingresa una patente manualmente o selecciona un vehículo rápido.');
+      showAlert('Patente Requerida', 'Por favor, ingresa una patente manualmente o selecciona un vehículo rápido.');
       return;
     }
 
@@ -373,13 +381,13 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       } else {
         setLoading(false);
         addLog(`[RECHAZADO] ${response.message}`);
-        Alert.alert('Acceso Denegado', response.message);
+        showAlert('Acceso Denegado', response.message);
       }
     } catch (error: any) {
       setLoading(false);
       const errMsg = error.message || 'Error de conexión';
       addLog(`[ERROR] Fallo en la comunicación: ${errMsg}`);
-      Alert.alert('Error', errMsg);
+      showAlert('Error', errMsg);
     }
   };
 
@@ -556,47 +564,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        {/* Real-time AI Sync Toggle Option */}
-        <View style={[
-          styles.syncCard,
-          autoSync && styles.syncCardActive
-        ]}>
-          <View style={styles.syncRow}>
-            <View style={styles.syncTextWrapper}>
-              <View style={styles.syncHeaderRow}>
-                <Ionicons 
-                  name={autoSync ? "radio-button-on" : "radio-button-off"} 
-                  size={20} 
-                  color={autoSync ? "#00E676" : "rgba(255,255,255,0.4)"} 
-                  style={{ marginRight: 8 }} 
-                />
-                <Text style={styles.syncTitle}>VINCULAR CÁMARA IA</Text>
-              </View>
-              <Text style={styles.syncSubtitle}>
-                {autoSync 
-                  ? "Escuchando lecturas de patentes en tiempo real..." 
-                  : "Conecta la barrera con la IA física de tu computadora"
-                }
-              </Text>
-            </View>
-            <TouchableOpacity 
-              style={[
-                styles.syncToggle,
-                autoSync ? styles.syncToggleOn : styles.syncToggleOff
-              ]} 
-              onPress={() => {
-                setAutoSync(!autoSync);
-                setLastEventTimestamp(null); // Reset to fetch fresh events
-                addLog(`[AUTO-SYNC] Modo automático ${!autoSync ? 'HABILITADO 📡' : 'DESHABILITADO 📴'}`);
-              }}
-            >
-              <View style={[
-                styles.syncToggleThumb,
-                autoSync ? styles.syncToggleThumbOn : styles.syncToggleThumbOff
-              ]} />
-            </TouchableOpacity>
-          </View>
-        </View>
+
 
         {/* Configuration Panel */}
         <View style={styles.controlPanelCard}>
@@ -711,7 +679,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           {/* Submit Trigger Button */}
           <TouchableOpacity
             style={[styles.validateBtn, loading && styles.validateBtnDisabled]}
-            onPress={handleCheckPlate}
+            onPress={() => handleCheckPlate()}
             disabled={loading}
           >
             <LinearGradient

@@ -9,6 +9,7 @@ import { FindParkingScreen } from '../screens/main/FindParkingScreen';
 import { CreateBookingScreen } from '../screens/main/CreateBookingScreen';
 import { MyBookingsScreen } from '../screens/main/MyBookingsScreen';
 import { OwnerBookingsScreen } from '../screens/main/OwnerBookingsScreen';
+import { OwnerEarningsScreen } from '../screens/main/OwnerEarningsScreen';
 import { ManageParkingScreen } from '../screens/main/ManageParkingScreen';
 import { MyParkingsScreen } from '../screens/main/MyParkingsScreen';
 import { BarrierSimulatorScreen } from '../screens/main/BarrierSimulatorScreen';
@@ -34,6 +35,7 @@ export const AppNavigator = () => {
       <Stack.Screen name="CreateBooking" component={CreateBookingScreen} />
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
       <Stack.Screen name="OwnerBookings" component={OwnerBookingsScreen} />
+      <Stack.Screen name="OwnerEarnings" component={OwnerEarningsScreen} />
       <Stack.Screen name="ManageParking" component={ManageParkingScreen} />
       <Stack.Screen name="MyParkings" component={MyParkingsScreen} />
       <Stack.Screen name="BarrierSimulator" component={BarrierSimulatorScreen} />

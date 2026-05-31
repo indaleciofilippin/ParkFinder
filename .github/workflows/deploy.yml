@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - develop
+      - main 
   pull_request:
     branches:
       - develop
+      - main
   workflow_dispatch:
 
 env:
@@ -16,7 +18,7 @@ env:
   ANPR_IMAGE_NAME: parkfinder-anpr
 
 jobs:
-  test:
+  test-backend:
     name: Run Unit Tests (CI)
     runs-on: ubuntu-latest
     steps:
@@ -42,9 +44,33 @@ jobs:
           cd Backend
           python -m unittest discover -s tests -p "test_*.py"
 
+  test-frontend:
+    name: Run Frontend Tests (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './Frontend/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd Frontend
+          npm install --legacy-peer-deps
+
+      - name: Run Tests
+        run: |
+          cd Frontend
+          npm run test -- --coverage
+
   build-and-push:
     name: Build & Push to Docker Hub
-    needs: test
+    needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') || github.event_name == 'workflow_dispatch'
     steps:

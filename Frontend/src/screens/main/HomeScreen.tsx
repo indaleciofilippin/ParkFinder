@@ -188,6 +188,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 icon="analytics-outline" 
                 title="Ganancias" 
                 color="#764ba2" 
+                onPress={() => navigation.navigate('OwnerEarnings')}
               />
               <ActionCard 
                 icon="list-outline" 
