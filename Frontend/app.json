@@ -22,6 +22,11 @@
     },
     "android": {
       "package": "com.indalecio.parkfinder",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB9nvZ8Vl4aoHzdkZHWLuF2G-1n2jkzl0Q"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -44,7 +49,8 @@
           "locationWhenInUsePermission": "Permite a ParkFinder sugerir cocheras cercanas a tu ubicación."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }
