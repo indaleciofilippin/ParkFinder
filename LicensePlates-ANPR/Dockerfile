@@ -17,5 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8501
+EXPOSE 8001
 
-CMD ["streamlit", "run", "app_stream.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true", "--server.enableCORS", "false", "--server.enableXsrfProtection", "false"]
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]

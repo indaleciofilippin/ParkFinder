@@ -135,9 +135,28 @@ class BookingService:
             )
             db.add(history)
             
-            # 6. Registrar método de pago en Mercado Pago (Tokenización simulada o real con fallback)
-            payment_service = PaymentService()
-            card_info = payment_service.create_customer_and_save_card(email, card_token)
+            # 6. Registrar método de pago en Mercado Pago (Reutilización o Nueva Tokenización)
+            if not card_token or card_token == "use_saved_card":
+                # Buscar la última transacción válida de este usuario
+                last_tx = db.query(PaymentTransaction).join(Invoice).filter(
+                    Invoice.id_booking.in_(
+                        db.query(Booking.id_booking).filter(Booking.id_profile == id_profile)
+                    ),
+                    PaymentTransaction.gateway_reference != "error"
+                ).order_by(PaymentTransaction.id_transaction.desc()).first()
+                
+                if last_tx and "|" in last_tx.gateway_reference:
+                    parts = last_tx.gateway_reference.split("|")
+                    card_info = {
+                        "customer_id": parts[0],
+                        "card_id": parts[1]
+                    }
+                    payment_method_id = parts[2] if len(parts) > 2 else payment_method_id
+                else:
+                    raise ValueError("No se encontró ninguna tarjeta guardada en tu perfil. Por favor, ingresa los datos de tu tarjeta.")
+            else:
+                payment_service = PaymentService()
+                card_info = payment_service.create_customer_and_save_card(email, card_token)
             
             # Crear Factura inicial (pendiente de cálculo al check-out)
             invoice = Invoice(
@@ -158,9 +177,9 @@ class BookingService:
                 id_invoice=invoice.id_invoice,
                 gateway_reference=gateway_ref,
                 payment_method=payment_method_id,
-                amount_attemped=Decimal("0.00"),
+                amount_attempted=Decimal("0.00"),
                 status="pending",
-                attemped_at=datetime.now(BA_TZ)
+                attempted_at=datetime.now(BA_TZ)
             )
             db.add(transaction)
 
@@ -332,14 +351,17 @@ class BookingService:
             gateway_reference = "none"
             payment_method_id = "credit_card"
             
-            # Look for the pending invoice and payment transaction
-            invoice = db.query(Invoice).filter_by(id_booking=active_booking.id_booking, payment_status="pending").first()
+            # Look for the pending or failed invoice and payment transaction
+            invoice = db.query(Invoice).filter(
+                Invoice.id_booking == active_booking.id_booking,
+                Invoice.payment_status.in_(["pending", "failed"])
+            ).first()
             if not invoice:
                 print("❌ [CHECK-OUT] No pending invoice found for this booking.")
                 return {
                     "status": "denied",
                     "action": "none",
-                    "message": "Acceso denegado. No se encontró una factura pendiente para esta reserva."
+                    "message": "Acceso denegado. No se encontró una factura pendiente o con pago fallido para esta reserva."
                 }
                 
             transaction = db.query(PaymentTransaction).filter_by(id_invoice=invoice.id_invoice, status="pending").first()
@@ -396,9 +418,9 @@ class BookingService:
                 id_invoice=invoice.id_invoice,
                 gateway_reference=gateway_reference,
                 payment_method=payment_method_id,
-                amount_attemped=total_amount,
+                amount_attempted=total_amount,
                 status="approved" if payment_status == "paid" else "rejected",
-                attemped_at=now
+                attempted_at=now
             )
             db.add(charge_tx)
             

@@ -12,6 +12,9 @@ services:
       - .env
     networks:
       - parkfinder_net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
   frontend:
     build: ./Frontend
@@ -37,12 +40,13 @@ services:
     container_name: parkfinder_anpr
     ports:
       - "8501:8501"
+      - "8001:8001"
     volumes:
       - ./LicensePlates-ANPR:/app
     env_file:
       - .env
-    devices:
-      - /dev/video0:/dev/video0
+#    devices:
+#      - /dev/video0:/dev/video0
     networks:
       - parkfinder_net
 
