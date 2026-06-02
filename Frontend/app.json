@@ -7,6 +7,7 @@
     "scheme": "com.indalecio.parkfinder",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "jsc",
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -17,7 +18,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.indalecio.parkfinder",
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación requiere acceso a la cámara para escanear patentes de vehículos."
+        "NSCameraUsageDescription": "Esta aplicación requiere acceso a la cámara para escanear patentes de vehículos.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.493230057765-tar2a2l1vv9rm6f1bp2kdjioc5r47hma"
+            ]
+          }
+        ]
       }
     },
     "android": {

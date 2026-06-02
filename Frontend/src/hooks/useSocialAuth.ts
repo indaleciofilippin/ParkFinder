@@ -8,25 +8,17 @@ import { useAuth } from '../context/AuthContext';
 // Permite a Expo cerrar el navegador interno cuando se completa el Auth
 WebBrowser.maybeCompleteAuthSession();
 
-// Variables para el módulo nativo (se carga dinámicamente)
-let GoogleSignin: any = null;
-let statusCodes: any = null;
-let isErrorWithCode: any = null;
+import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 
+// Configuramos Google Sign In nativo
 try {
-  // Intentar cargar la librería nativa. Esto fallará en Expo Go y lo atraparemos.
-  const GoogleSignInModule = require('@react-native-google-signin/google-signin');
-  GoogleSignin = GoogleSignInModule.GoogleSignin;
-  statusCodes = GoogleSignInModule.statusCodes;
-  isErrorWithCode = GoogleSignInModule.isErrorWithCode;
-
   GoogleSignin.configure({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     offlineAccess: false,
   });
 } catch (error) {
-  console.log('El módulo nativo de Google Sign In no está disponible (ejecutando en Expo Go o entorno web).');
+  console.log('Error configurando Google Sign In', error);
 }
 
 export const useSocialAuth = () => {

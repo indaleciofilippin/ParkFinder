@@ -115,12 +115,12 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
   // Real-time camera scanning loop (every 2 seconds)
   useEffect(() => {
-    if (!realtimeCameraActive || scanCooldown || isProcessingFrame || !selectedParking) {
+    if (!realtimeCameraActive || scanCooldown || isProcessingFrame || !selectedParking || barrierState === 'open') {
       return;
     }
 
     const interval = setInterval(async () => {
-      if (isProcessingFrame || scanCooldown || !cameraRef.current) return;
+      if (isProcessingFrame || scanCooldown || !cameraRef.current || barrierState === 'open') return;
 
       try {
         setIsProcessingFrame(true);
@@ -141,17 +141,25 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
             setLicensePlate(detectedPlate);
             addLog(`[LECTOR IA] ¡Patente detectada automáticamente!: "${detectedPlate}"`);
             
-            // Pause scanning during validation and barrier operations
+            // Pause scanning during validation
             setScanCooldown(true);
             
-            // Check plate and open barrier
-            await handleCheckPlate(detectedPlate);
+            // Check plate and open barrier. We skip the cooldown check inside the function since we just activated it.
+            const success = await handleCheckPlate(detectedPlate, true);
             
-            // Hold scanning for 8 seconds to allow the car to pass and barrier to close
-            setTimeout(() => {
-              setScanCooldown(false);
-              addLog('[LECTOR IA] Reanudando escaneo en tiempo real.');
-            }, 8000);
+            if (success) {
+              // Hold scanning for 8 seconds to allow the car to pass and barrier to close
+              setTimeout(() => {
+                setScanCooldown(false);
+                addLog('[LECTOR IA] Reanudando escaneo en tiempo real.');
+              }, 8000);
+            } else {
+              // Rejected! Just wait 3 seconds before trying another scan to avoid spamming the same rejected plate
+              setTimeout(() => {
+                setScanCooldown(false);
+                addLog('[LECTOR IA] Listo para leer siguiente patente.');
+              }, 3000);
+            }
           } else {
             addLog('[LECTOR IA] No se detectaron patentes en el fotograma actual.');
           }
@@ -165,7 +173,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [realtimeCameraActive, scanCooldown, isProcessingFrame, selectedParking]);
+  }, [realtimeCameraActive, scanCooldown, isProcessingFrame, selectedParking, barrierState]);
 
   const toggleRealtimeCamera = async () => {
     if (!selectedParking) {
@@ -347,15 +355,18 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   };
 
   // Perform plate check and trigger barrier action
-  const handleCheckPlate = async (overridePlate?: string) => {
+  const handleCheckPlate = async (overridePlate?: string, skipCooldownCheck = false): Promise<boolean> => {
+    if (barrierState === 'open' || loading || (!skipCooldownCheck && scanCooldown)) {
+      return false;
+    }
     if (!selectedParking) {
       showAlert('Cochera Requerida', 'Por favor, selecciona una cochera para simular la barrera.');
-      return;
+      return false;
     }
     const plateToCheck = overridePlate || licensePlate;
     if (!plateToCheck.trim()) {
       showAlert('Patente Requerida', 'Por favor, ingresa una patente manualmente o selecciona un vehículo rápido.');
-      return;
+      return false;
     }
 
     setLoading(true);
@@ -378,16 +389,19 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           // Trigger auto-close mechanism after 6 seconds
           triggerAutoClose();
         });
+        return true;
       } else {
         setLoading(false);
         addLog(`[RECHAZADO] ${response.message}`);
         showAlert('Acceso Denegado', response.message);
+        return false;
       }
     } catch (error: any) {
       setLoading(false);
       const errMsg = error.message || 'Error de conexión';
       addLog(`[ERROR] Fallo en la comunicación: ${errMsg}`);
       showAlert('Error', errMsg);
+      return false;
     }
   };
 
@@ -553,11 +567,13 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                   )}
                 </View>
                 <Text style={styles.cameraInstructions}>
-                  {scanCooldown 
-                    ? "⏱️ Vehículo pasando... Barrera en proceso" 
-                    : isProcessingFrame 
-                      ? "⚡ Analizando patente..." 
-                      : "Apunta el recuadro a la patente del vehículo"}
+                  {barrierState === 'open'
+                    ? "⏱️ Vehículo pasando... Barrera abierta"
+                    : scanCooldown 
+                      ? "⏱️ Procesando / Pausa de seguridad..." 
+                      : isProcessingFrame 
+                        ? "⚡ Analizando patente..." 
+                        : "Apunta el recuadro a la patente del vehículo"}
                 </Text>
               </View>
             </View>
@@ -617,7 +633,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               <TouchableOpacity 
                 onPress={handleScanPlate} 
                 style={styles.clearBtn} 
-                disabled={scanningPlate || loading}
+                disabled={scanningPlate || loading || barrierState === 'open'}
               >
                 {scanningPlate ? (
                   <ActivityIndicator size="small" color="#00f2fe" />
@@ -678,9 +694,9 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
           {/* Submit Trigger Button */}
           <TouchableOpacity
-            style={[styles.validateBtn, loading && styles.validateBtnDisabled]}
+            style={[styles.validateBtn, (loading || barrierState === 'open') && styles.validateBtnDisabled]}
             onPress={() => handleCheckPlate()}
-            disabled={loading}
+            disabled={loading || barrierState === 'open'}
           >
             <LinearGradient
               colors={['#00f2fe', '#4facfe']}
