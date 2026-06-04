@@ -66,8 +66,8 @@ export const useSocialAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    // Si tenemos el módulo nativo cargado, intentamos usar Google Sign In Nativo
-    if (GoogleSignin) {
+    // Si tenemos el módulo nativo cargado y no estamos en entorno de test, intentamos usar Google Sign In Nativo
+    if (GoogleSignin && process.env.NODE_ENV !== 'test') {
       setIsGoogleLoading(true);
       try {
         await GoogleSignin.hasPlayServices();
