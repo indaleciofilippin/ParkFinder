@@ -10,6 +10,13 @@ jest.mock('../context/AuthContext', () => ({
   }),
 }));
 
+// Mock @react-native-google-signin/google-signin
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: null,
+  isErrorWithCode: jest.fn(),
+  statusCodes: {},
+}));
+
 // Mock expo-auth-session/providers/google
 const mockPromptAsync = jest.fn();
 jest.mock('expo-auth-session/providers/google', () => ({
