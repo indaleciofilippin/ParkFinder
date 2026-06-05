@@ -7,6 +7,7 @@ import { theme } from '../../theme/theme';
 import { i18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useSocialAuth } from '../../hooks/useSocialAuth';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const { register } = useAuth();
@@ -28,19 +29,19 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const handleRegister = async () => {
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Todos los campos son requeridos');
+      CustomAlert.alert('Error', 'Todos los campos son requeridos');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      CustomAlert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
     // Validar fortaleza de la contraseña
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_+\-\[\]\\\/]).{8,}$/;
     if (!passwordRegex.test(password)) {
-      Alert.alert(
+      CustomAlert.alert(
         'Contraseña poco segura',
         'La contraseña debe tener al menos:\n• 8 caracteres\n• Una letra mayúscula\n• Una letra minúscula\n• Un número\n• Un carácter especial (ej: !, @, #, $, %, etc.)'
       );
@@ -58,10 +59,10 @@ export const RegisterScreen = ({ navigation }: any) => {
         first_name: firstName.trim(),
         last_name: lastName.trim()
       });
-      Alert.alert('Éxito', 'Cuenta creada correctamente. Inicia sesión para continuar.');
+      CustomAlert.alert('Éxito', 'Cuenta creada correctamente. Inicia sesión para continuar.');
       navigation.navigate('Login');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo crear la cuenta');
+      CustomAlert.alert('Error', e.message || 'No se pudo crear la cuenta');
     } finally {
       setIsLoading(false);
     }

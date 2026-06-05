@@ -7,6 +7,7 @@ import { theme } from '../../theme/theme';
 import { i18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useSocialAuth } from '../../hooks/useSocialAuth';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 export const LoginScreen = ({ navigation }: any) => {
   const { login } = useAuth();
@@ -24,7 +25,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Ingresa tu correo y contraseña');
+      CustomAlert.alert('Error', 'Ingresa tu correo y contraseña');
       return;
     }
     
@@ -33,9 +34,9 @@ export const LoginScreen = ({ navigation }: any) => {
       await login(email, password);
       // El estado global de AuthContext debería actualizarse 
       // y si hay un AppNavigator, cambiará automáticamente de pantalla.
-      Alert.alert('¡Bienvenido!', 'Sesión iniciada correctamente');
+      CustomAlert.alert('¡Bienvenido!', 'Sesión iniciada correctamente');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Credenciales incorrectas');
+      CustomAlert.alert('Error', e.message || 'Credenciales incorrectas');
     } finally {
       setIsLoading(false);
     }

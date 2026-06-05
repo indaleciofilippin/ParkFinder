@@ -57,10 +57,15 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${url}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${url}`, {
+      ...options,
+      headers,
+    });
+  } catch (error: any) {
+    throw new Error('Error de conexión con el servidor. Verifica tu internet.');
+  }
 
   return response;
 };
@@ -73,13 +78,18 @@ export const authApi = {
     formData.append('username', data.email);
     formData.append('password', data.password);
 
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
-    });
+    let response;
+    try {
+      response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+    } catch (e) {
+      throw new Error('Error de conexión con el servidor.');
+    }
 
     if (!response.ok) {
       const respError = await response.json().catch(() => ({}));
@@ -89,13 +99,18 @@ export const authApi = {
   },
 
   register: async (data: any) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    let response;
+    try {
+      response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+    } catch (e) {
+      throw new Error('Error de conexión con el servidor.');
+    }
 
     if (!response.ok) {
       const respError = await response.json().catch(() => ({}));

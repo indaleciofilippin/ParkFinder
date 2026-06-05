@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { WebAlert } from './src/components/WebAlert';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <StatusBar style="light" /> 
         </NavigationContainer>
       </AuthProvider>
+      <WebAlert />
     </SafeAreaProvider>
   );
 }
