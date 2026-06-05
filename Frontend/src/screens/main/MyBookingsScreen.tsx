@@ -151,6 +151,23 @@ export const MyBookingsScreen = ({ navigation }: any) => {
               </View>
             </View>
           )}
+
+          {item.invoice_total != null && (
+            <View style={[styles.detailItem, { marginTop: 12 }]}>
+              <Ionicons
+                name={item.invoice_status === 'paid' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+                size={16}
+                color={item.invoice_status === 'paid' ? '#00E676' : '#FF8C00'}
+              />
+              <View style={styles.detailTextCol}>
+                <Text style={styles.detailLabel}>Total Cobrado</Text>
+                <Text style={[styles.detailValue, { color: item.invoice_status === 'paid' ? '#00E676' : '#FF8C00', fontWeight: 'bold' }]}>
+                  {formatCurrency(item.invoice_total)}
+                  {item.invoice_status !== 'paid' && '  ⚠️ Pago pendiente'}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {item.current_status === 'pending' && (

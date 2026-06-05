@@ -6,6 +6,20 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { WebAlert } from './src/components/WebAlert';
+import { Platform } from 'react-native';
+
+if (Platform.OS === 'web') {
+  // Inject global CSS for Leaflet map zoom controls so they don't overlap the back button
+  const style = document.createElement('style');
+  style.type = 'text/css';
+  style.innerHTML = `
+    .leaflet-top.leaflet-left {
+      top: 80px !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export default function App() {
   return (
@@ -17,6 +31,7 @@ export default function App() {
           <StatusBar style="light" /> 
         </NavigationContainer>
       </AuthProvider>
+      <WebAlert />
     </SafeAreaProvider>
   );
 }

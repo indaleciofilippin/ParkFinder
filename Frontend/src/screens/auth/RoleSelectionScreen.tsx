@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { userApi, saveToken } from '../../services/api';
-
+import { CustomAlert } from '../../utils/CustomAlert';
 export const RoleSelectionScreen = () => {
   const { user, setUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState<'driver' | 'park' | null>(null);
@@ -31,7 +31,7 @@ export const RoleSelectionScreen = () => {
 
       setUser(updatedUser);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo actualizar tu perfil');
+      CustomAlert.alert('Error', error.message || 'No se pudo actualizar tu perfil');
     } finally {
       setIsLoading(false);
     }

@@ -124,6 +124,7 @@ export const MapSearchScreen = ({ navigation, route }: any) => {
         region={region}
         showsUserLocation={true}
         showsMyLocationButton={false}
+        mapPadding={{ top: Platform.OS === 'web' ? 80 : 0, right: 0, bottom: 0, left: 0 }}
         onPress={() => setSelectedParking(null)}
       >
         {parkings.map((parking) => (
