@@ -12,8 +12,8 @@ on:
 env:
   REGISTRY: docker.io
   GCP_REGION: us-central1
-  BACKEND_IMAGE_NAME: parkfinder-backend
-  ANPR_IMAGE_NAME: parkfinder-anpr
+  BACKEND_IMAGE_NAME: parkfinder-backend-testing
+  ANPR_IMAGE_NAME: parkfinder-anpr-testing
 
 jobs:
   test-backend:
