@@ -108,25 +108,32 @@ def get_saved_payment_method(
         InvModel.id_booking.in_(
             db.query(BookModel.id_booking).filter(BookModel.id_profile == id_profile)
         ),
-        PTModel.gateway_reference != "error"
+        PTModel.gateway_reference != "error",
+        PTModel.gateway_reference.like("%|%")
     ).order_by(PTModel.id_transaction.desc()).first()
     
-    if last_tx and "|" in last_tx.gateway_reference:
+    if last_tx:
         parts = last_tx.gateway_reference.split("|")
         customer_id = parts[0]
         card_id = parts[1]
         payment_method_id = parts[2] if len(parts) > 2 else "visa"
         
-        # Get card details from Mercado Pago (last 4 digits and exact brand)
+        # Get card details from Rebill
         try:
             from app.services.payment_service import PaymentService
+            import requests
             ps = PaymentService()
-            card_res = ps.sdk.card().get(customer_id, card_id)
-            card_data = card_res.get("response", {})
-            last_four = card_data.get("last_four_digits", "8881")
-            payment_method_id = card_data.get("payment_method", {}).get("id", payment_method_id)
+            resp = requests.get(f"{ps.base_url}/customers/{customer_id}", headers=ps.headers)
+            last_four = "8881"
+            if resp.status_code == 200:
+                customer_data = resp.json()
+                cards = customer_data.get("cards", [])
+                for card in cards:
+                    if card.get("id") == card_id:
+                        last_four = card.get("last4", card.get("last_four_digits", "8881"))
+                        break
         except Exception as e:
-            print(f"⚠️ Error fetching card details from MP: {e}")
+            print(f"⚠️ Error fetching card details from Rebill: {e}")
             last_four = "8881" # Fallback
             
         return {
