@@ -27,7 +27,7 @@ const { width } = Dimensions.get('window');
 
 export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
@@ -35,7 +35,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       Alert.alert(title, message);
     }
   };
-  
+
   // State
   const [parkings, setParkings] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -120,12 +120,12 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     }
 
     const interval = setInterval(async () => {
-      if (isProcessingFrame || scanCooldown || !cameraRef.current || barrierState === 'open') return;
+      if (isProcessingFrame || scanCooldown || !cameraRef.current) return;
 
       try {
         setIsProcessingFrame(true);
         addLog('[LECTOR IA] Capturando fotograma de cámara en vivo...');
-        
+
         // Take a picture silently (high compression)
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.3,
@@ -135,18 +135,18 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         if (photo && photo.uri) {
           addLog('[LECTOR IA] Analizando fotograma en microservicio de IA...');
           const response = await bookingApi.scanBarrierPlateImage(photo.uri);
-          
+
           if (response.success && response.plate) {
             const detectedPlate = response.plate.toUpperCase();
             setLicensePlate(detectedPlate);
             addLog(`[LECTOR IA] ¡Patente detectada automáticamente!: "${detectedPlate}"`);
-            
+
             // Pause scanning during validation
             setScanCooldown(true);
-            
+
             // Check plate and open barrier. We skip the cooldown check inside the function since we just activated it.
             const success = await handleCheckPlate(detectedPlate, true);
-            
+
             if (success) {
               // Hold scanning for 8 seconds to allow the car to pass and barrier to close
               setTimeout(() => {
@@ -216,10 +216,10 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
     const pollLatestEvent = async () => {
       try {
         const response = await bookingApi.getLatestBarrierEvent(selectedParking.id_parking);
-        
+
         if (response.has_event && response.event) {
           const event = response.event;
-          
+
           // First load of auto-sync: capture the current latest log timestamp but do not open the barrier for old history
           if (lastEventTimestamp === null) {
             setLastEventTimestamp(event.timestamp);
@@ -229,17 +229,17 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
           // A brand new entry/exit log has been registered!
           if (event.timestamp !== lastEventTimestamp) {
             setLastEventTimestamp(event.timestamp);
-            
+
             // Auto fill license plate for visual confirmation
             setLicensePlate(event.license_plate);
-            
+
             addLog(`[SENSOR IA] ¡Acceso remoto detectado! Patente: "${event.license_plate.toUpperCase()}"`);
-            
+
             // Open barrier
             setBarrierState('open');
             addLog(`[APROBADO] ${event.action === 'check-in' ? 'Ingreso' : 'Salida'} registrado en la base de datos.`);
             addLog('[FÍSICO] Motor activado por IoT. Abriendo barrera...');
-            
+
             animateBarrier(1, () => {
               addLog('[FÍSICO] Barrera totalmente ABIERTA por IA.');
               triggerAutoClose();
@@ -309,7 +309,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         showAlert(
-          'Permiso Denegado', 
+          'Permiso Denegado',
           'Se requiere acceso a la cámara para poder tomar una foto y leer la patente de forma automática.'
         );
         addLog('[LECTOR IA] Permiso de cámara denegado.');
@@ -375,17 +375,28 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
     try {
       const response = await bookingApi.checkBarrierPlate(selectedParking.id_parking, plateToCheck);
-      
+
       if (response.status === 'allowed') {
         setLoading(false);
         addLog(`[APROBADO] ${response.message}`);
-        
+
+        // Show checkout payment breakdown if applicable
+        if (response.action === 'check-out' && response.total_charged != null) {
+          const total: number = response.total_charged;
+          const fee = Math.round((total / 1.1) * 0.1 * 100) / 100;
+          const subtotal = Math.round((total - fee) * 100) / 100;
+          showAlert(
+            'Salida Autorizada',
+            `Subtotal estacionamiento: $${subtotal.toFixed(2)}\nFee de servicio (10%): $${fee.toFixed(2)}\n---\nTotal cobrado: $${total.toFixed(2)}`
+          );
+        }
+
         // Open barrier
         setBarrierState('open');
         addLog('[FÍSICO] Motor activado. Abriendo barrera...');
         animateBarrier(1, () => {
           addLog('[FÍSICO] Barrera totalmente ABIERTA. Vehículo puede pasar.');
-          
+
           // Trigger auto-close mechanism after 6 seconds
           triggerAutoClose();
         });
@@ -407,18 +418,18 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
   const triggerAutoClose = () => {
     if (countdownTimer.current) clearInterval(countdownTimer.current);
-    
+
     let countdown = 6;
     setAutoCloseCountdown(countdown);
-    
+
     countdownTimer.current = setInterval(() => {
       countdown -= 1;
       setAutoCloseCountdown(countdown);
-      
+
       if (countdown <= 0) {
         if (countdownTimer.current) clearInterval(countdownTimer.current);
         setAutoCloseCountdown(null);
-        
+
         addLog('[SISTEMA] Sensor de paso detectado. Iniciando cierre automático...');
         animateBarrier(0, () => {
           addLog('[FÍSICO] Barrera totalmente CERRADA. Canal bloqueado.');
@@ -459,11 +470,11 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        
+
         {/* Visual Barrier Simulation Area */}
         <View style={styles.simulationCard}>
           <Text style={styles.sectionLabel}>ESTADO DE CANAL DE INGRESO / EGRESO</Text>
-          
+
           <View style={styles.visualizerContainer}>
             {/* Flashing Status Light Indicator on the Left Pole */}
             <View style={styles.lightPole}>
@@ -522,7 +533,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                 BARRERA {barrierState === 'open' ? 'ABIERTA' : 'CERRADA'}
               </Text>
             </View>
-            
+
             {autoCloseCountdown !== null && (
               <View style={styles.countdownBadge}>
                 <Ionicons name="car-outline" size={14} color="#00f2fe" style={{ marginRight: 5 }} />
@@ -569,10 +580,10 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                 <Text style={styles.cameraInstructions}>
                   {barrierState === 'open'
                     ? "⏱️ Vehículo pasando... Barrera abierta"
-                    : scanCooldown 
-                      ? "⏱️ Procesando / Pausa de seguridad..." 
-                      : isProcessingFrame 
-                        ? "⚡ Analizando patente..." 
+                    : scanCooldown
+                      ? "⏱️ Procesando / Pausa de seguridad..."
+                      : isProcessingFrame
+                        ? "⚡ Analizando patente..."
                         : "Apunta el recuadro a la patente del vehículo"}
                 </Text>
               </View>
@@ -630,9 +641,9 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                 <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity 
-                onPress={handleScanPlate} 
-                style={styles.clearBtn} 
+              <TouchableOpacity
+                onPress={handleScanPlate}
+                style={styles.clearBtn}
                 disabled={scanningPlate || loading || barrierState === 'open'}
               >
                 {scanningPlate ? (
@@ -680,11 +691,11 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
             >
-              <Ionicons 
-                name={realtimeCameraActive ? "stop-circle" : "camera"} 
-                size={22} 
-                color="#fff" 
-                style={{ marginRight: 8 }} 
+              <Ionicons
+                name={realtimeCameraActive ? "stop-circle" : "camera"}
+                size={22}
+                color="#fff"
+                style={{ marginRight: 8 }}
               />
               <Text style={styles.scanCameraBtnText}>
                 {realtimeCameraActive ? "DESACTIVAR CÁMARA EN VIVO" : "ACTIVAR CÁMARA EN VIVO (IA REALTIME)"}

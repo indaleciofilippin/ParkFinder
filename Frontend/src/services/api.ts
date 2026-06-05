@@ -14,7 +14,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || `http://${devIp}:8000/api/v1`
 export const saveToken = async (key: string, value: string) => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
+      document.cookie = `${key}=${value}; path=/; max-age=31536000; secure; samesite=strict`;
     } else {
       await SecureStore.setItemAsync(key, value);
     }
@@ -26,7 +26,8 @@ export const saveToken = async (key: string, value: string) => {
 export const getToken = async (key: string) => {
   try {
     if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
+      const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+      return match ? match[2] : null;
     } else {
       return await SecureStore.getItemAsync(key);
     }
@@ -39,7 +40,7 @@ export const getToken = async (key: string) => {
 export const removeToken = async (key: string) => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
+      document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
     } else {
       await SecureStore.deleteItemAsync(key);
     }

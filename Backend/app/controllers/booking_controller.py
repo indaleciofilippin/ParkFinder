@@ -56,6 +56,8 @@ class BookingResponse(BaseModel):
     applied_rate: float
     current_status: str
     license_plate: Optional[str] = None
+    invoice_total: Optional[float] = None
+    invoice_status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -155,9 +157,22 @@ def get_my_bookings(
     
     # Limpiar reservas expiradas antes de mostrar la actividad
     from app.services.space_category_service import SpaceCategoryService
+    from app.models.invoice import Invoice as InvoiceModel
     SpaceCategoryService._prune_expired_bookings(db)
-        
-    return BookingService.get_user_bookings(db, id_profile=id_profile)
+
+    bookings = BookingService.get_user_bookings(db, id_profile=id_profile)
+
+    # Attach invoice data to each booking
+    for booking in bookings:
+        invoice = db.query(InvoiceModel).filter_by(id_booking=booking.id_booking).order_by(InvoiceModel.id_invoice.desc()).first()
+        if invoice and float(invoice.total_amount) > 0:
+            booking.invoice_total = float(invoice.total_amount)
+            booking.invoice_status = invoice.payment_status
+        else:
+            booking.invoice_total = None
+            booking.invoice_status = None
+
+    return bookings
 
 @router.put("/{id_booking}/status")
 def update_status(
