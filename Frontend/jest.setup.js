@@ -1,64 +1,29 @@
-jest.mock('react-native/jest/mockComponent', () => {
-  return {
-    __esModule: true,
-    default: (moduleName, instanceMethods, isESModule) => {
-      const React = require('react');
-      const RealComponent = isESModule
-        ? jest.requireActual(moduleName).default
-        : jest.requireActual(moduleName);
+const path = require('path');
+const mockComponentModule = jest.requireActual('react-native/jest/mockComponent');
+const originalMockComponent = mockComponentModule.default;
+const mockComponentDir = path.dirname(require.resolve('react-native/jest/mockComponent'));
 
-      const SuperClass =
-        typeof RealComponent === 'function' &&
-        RealComponent.prototype &&
-        RealComponent.prototype.constructor instanceof React.Component
-          ? RealComponent
-          : React.Component;
+const resolveModuleFromMockComponent = moduleName =>
+  moduleName.startsWith('.')
+    ? path.join(mockComponentDir, moduleName)
+    : moduleName;
 
-      const name =
-        RealComponent.displayName ??
-        RealComponent.name ??
-        (RealComponent.render == null
-          ? 'Unknown'
-          : RealComponent.render.displayName ?? RealComponent.render.name);
+mockComponentModule.default = (moduleName, instanceMethods, isESModule) => {
+  const realModule = jest.requireActual(resolveModuleFromMockComponent(moduleName));
+  const RealComponent = isESModule ? realModule.default : realModule;
 
-      const nameWithoutPrefix = name.replace(/^(RCT|RK)/, '');
+  if (RealComponent && RealComponent.prototype == null) {
+    Object.defineProperty(RealComponent, 'prototype', {
+      value: { constructor: RealComponent },
+      writable: true,
+      configurable: true,
+    });
+  } else if (RealComponent?.prototype && RealComponent.prototype.constructor == null) {
+    RealComponent.prototype.constructor = RealComponent;
+  }
 
-      const Component = class extends SuperClass {
-        static displayName = 'Component';
-        render() {
-          const props = { ...RealComponent.defaultProps };
-          if (this.props) {
-            Object.keys(this.props).forEach(prop => {
-              if (this.props[prop] !== undefined) {
-                props[prop] = this.props[prop];
-              }
-            });
-          }
-          return React.createElement(nameWithoutPrefix, props, this.props.children);
-        }
-      };
-
-      Object.defineProperty(Component, 'name', {
-        value: name,
-        writable: false,
-        enumerable: false,
-        configurable: true,
-      });
-
-      Component.displayName = nameWithoutPrefix;
-
-      Object.keys(RealComponent).forEach(classStatic => {
-        Component[classStatic] = RealComponent[classStatic];
-      });
-
-      if (instanceMethods != null) {
-        Object.assign(Component.prototype, instanceMethods);
-      }
-
-      return Component;
-    },
-  };
-});
+  return originalMockComponent(moduleName, instanceMethods, isESModule);
+};
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
@@ -76,5 +41,3 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
   isErrorWithCode: jest.fn(() => false),
 }));
-
-
