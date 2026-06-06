@@ -10,16 +10,39 @@ from app.controllers.space_category_controller import router as space_category_r
 from fastapi import Request, Depends, HTTPException, status
 from app.core.security import get_current_user, oauth2_scheme
 import os
-from app.core.config import engine
+from app.core.config import engine, SessionLocal
+from app.services.booking_service import BookingService
+import asyncio
+from contextlib import asynccontextmanager
 
+async def no_show_cron():
+    """Background task to process no-shows every 60 seconds."""
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                BookingService.process_no_shows(db)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"⚠️ [CRON] Error in no_show_cron: {e}")
+        await asyncio.sleep(60)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    task = asyncio.create_task(no_show_cron())
+    yield
+    # Shutdown
+    task.cancel()
 
 # Crear tablas automáticamente si no existen
 
 app = FastAPI(
     title="ParkFinder API",
     description="Backend API for ParkFinder application using OpenCV",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS

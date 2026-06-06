@@ -39,13 +39,25 @@ export const MyBookingsScreen = ({ navigation }: any) => {
   };
 
   const handleCancelBooking = async (id_booking: number) => {
+    const booking = bookings.find(b => b.id_booking === id_booking);
+    if (!booking) return;
+
+    const expectedStart = new Date(booking.expected_start_time);
+    const now = new Date();
+    const timeUntilStartMs = expectedStart.getTime() - now.getTime();
+    const minutesUntilStart = timeUntilStartMs / (1000 * 60);
+
+    const isLateCancel = minutesUntilStart < 15;
+
     Alert.alert(
       '¿Cancelar reserva?',
-      'Si cancelas con menos de 30 minutos de antelación al inicio, se aplicará el cobro total.',
+      isLateCancel 
+        ? '⚠️ AVISO IMPORTANTE: Estás cancelando a menos de 15 minutos del inicio de tu turno.\n\nSe aplicará una penalidad automática del 50% de 1 hora de estadía a tu tarjeta registrada.'
+        : 'Estás a tiempo de cancelar tu reserva sin ningún cargo.\n\n¿Estás seguro de que quieres continuar?',
       [
         { text: 'Volver', style: 'cancel' },
         { 
-          text: 'Confirmar Cancelación', 
+          text: isLateCancel ? 'Aceptar y Pagar Penalidad' : 'Confirmar Cancelación', 
           style: 'destructive',
           onPress: async () => {
             try {

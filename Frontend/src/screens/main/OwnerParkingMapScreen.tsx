@@ -47,7 +47,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.trim().length > 2) {
+      if (searchQuery.trim().length > 2 && searchQuery !== selectedCoordinate?.address) {
         fetchSuggestions(searchQuery);
       } else {
         setSuggestions([]);
@@ -61,7 +61,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
     console.log(`🔍 [Geocoding] Buscando sugerencias para: "${query}"`);
     try {
       const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=es`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`,
         {
           headers: {
             'User-Agent': 'ParkFinder-App/1.0.0 (contact: info@parkfinder.com)',
@@ -130,7 +130,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
   const reverseGeocodeCoords = async (coords: { latitude: number; longitude: number }) => {
     try {
       const resp = await fetch(
-        `https://photon.komoot.io/reverse?lon=${coords.longitude}&lat=${coords.latitude}&lang=es`,
+        `https://photon.komoot.io/reverse?lon=${coords.longitude}&lat=${coords.latitude}`,
         {
           headers: {
             'User-Agent': 'ParkFinder-App/1.0.0 (contact: info@parkfinder.com)'

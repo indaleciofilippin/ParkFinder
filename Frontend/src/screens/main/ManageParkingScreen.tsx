@@ -162,7 +162,7 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
       }
 
       Alert.alert('Éxito', 'Cochera guardada correctamente', [
-        { text: 'OK', onPress: () => navigation.navigate('MyParkings') }
+        { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Error al guardar la configuración');

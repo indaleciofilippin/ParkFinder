@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { CommonActions } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -136,7 +137,13 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
       Alert.alert(
         'Reserva Confirmada',
         'Tu lugar está reservado. La barrera se abrirá automáticamente al detectar tu patente.',
-        [{ text: 'Listo', onPress: () => navigation.navigate('Home') }]
+        [{ text: 'Listo', onPress: () => navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            })
+          ) 
+        }]
       );
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || error.message || 'No se pudo realizar la reserva';

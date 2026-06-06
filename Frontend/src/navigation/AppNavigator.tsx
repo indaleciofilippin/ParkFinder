@@ -14,6 +14,7 @@ import { ManageParkingScreen } from '../screens/main/ManageParkingScreen';
 import { MyParkingsScreen } from '../screens/main/MyParkingsScreen';
 import { BarrierSimulatorScreen } from '../screens/main/BarrierSimulatorScreen';
 import { RealtimeOccupancyScreen } from '../screens/main/RealtimeOccupancyScreen';
+import { BankDetailsScreen } from '../screens/main/BankDetailsScreen';
 import { theme } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
@@ -40,6 +41,7 @@ export const AppNavigator = () => {
       <Stack.Screen name="MyParkings" component={MyParkingsScreen} />
       <Stack.Screen name="BarrierSimulator" component={BarrierSimulatorScreen} />
       <Stack.Screen name="RealtimeOccupancy" component={RealtimeOccupancyScreen} />
+      <Stack.Screen name="BankDetails" component={BankDetailsScreen} />
     </Stack.Navigator>
   );
 };
