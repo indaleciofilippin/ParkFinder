@@ -227,6 +227,16 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
             </View>
           </TouchableOpacity>
 
+          <View style={styles.penaltyWarningBox}>
+            <Ionicons name="warning" size={20} color="#FF3B30" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.penaltyWarningTitle}>¡Atención: Política de Multas!</Text>
+              <Text style={styles.penaltyWarningText}>
+                Si llegas más de 15 minutos tarde, el sistema cancelará la reserva automáticamente y se cobrará una <Text style={{fontWeight: 'bold', color: 'white'}}>multa del 50%</Text> del valor de 1 hora.
+              </Text>
+            </View>
+          </View>
+
           {showPicker && (
             Platform.OS === 'web' ? (
               <input
@@ -687,9 +697,30 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   policyText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
+  },
+  penaltyWarningBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.4)',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 15,
+    alignItems: 'flex-start',
+  },
+  penaltyWarningTitle: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  penaltyWarningText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    lineHeight: 18,
   },
   sectionHeader: {
     fontSize: 16,

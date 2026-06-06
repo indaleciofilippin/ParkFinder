@@ -61,7 +61,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
     console.log(`🔍 [Geocoding] Buscando sugerencias para: "${query}"`);
     try {
       const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=8&lat=${region.latitude}&lon=${region.longitude}`,
         {
           headers: {
             'User-Agent': 'ParkFinder-App/1.0.0 (contact: info@parkfinder.com)',

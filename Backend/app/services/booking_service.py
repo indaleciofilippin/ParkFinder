@@ -217,7 +217,7 @@ class BookingService:
         if not parking:
             return
 
-        owner_profile = db.query(UserProfile).filter_by(id_profile=parking.id_owner).first()
+        owner_profile = db.query(UserProfile).filter_by(id_profile=parking.id_profile).first()
         if not owner_profile:
             return
 
