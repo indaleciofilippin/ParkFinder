@@ -23,9 +23,12 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 # Asegurar que el esquema parkfinder exista e inicializar si no es testing
 if not os.getenv("TESTING"):
+    if engine.dialect.name == 'postgresql':
+        with engine.begin() as connection:
+            connection.execute(text("CREATE SCHEMA IF NOT EXISTS parkfinder"))
+            connection.execute(text("SET search_path TO parkfinder"))
+
     with engine.connect() as connection:
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS parkfinder"))
-        
         # Migración manual para parking (ubicación)
         try:
             connection.execute(text("ALTER TABLE parking ADD COLUMN IF NOT EXISTS address VARCHAR(200)"))
