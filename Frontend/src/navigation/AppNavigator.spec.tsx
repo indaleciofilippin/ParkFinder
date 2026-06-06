@@ -60,7 +60,8 @@ describe('AppNavigator - Unit Tests (AAA Pattern)', () => {
     expect(registeredScreenNames).toContain('OwnerEarnings');
     expect(registeredScreenNames).toContain('BarrierSimulator');
     expect(registeredScreenNames).toContain('RealtimeOccupancy');
-    expect(Stack.Screen).toHaveBeenCalledTimes(14); // Verified count matches stack screens
+    expect(registeredScreenNames).toContain('BankDetails');
+    expect(Stack.Screen).toHaveBeenCalledTimes(15); // Verified count matches stack screens
   });
 
 });
