@@ -168,7 +168,7 @@ export const MapSearchScreen = ({ navigation, route }: any) => {
       <TouchableOpacity 
         style={[
           styles.locationButton, 
-          selectedParking ? { bottom: 270 } : { bottom: 40 }
+          selectedParking ? { bottom: Platform.OS === 'ios' ? 360 : 340 } : { bottom: Platform.OS === 'ios' ? 40 : 20 }
         ]} 
         onPress={centerOnUser}
       >

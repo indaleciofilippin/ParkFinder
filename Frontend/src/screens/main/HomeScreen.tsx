@@ -180,19 +180,19 @@ export const HomeScreen = ({ navigation }: any) => {
             <>
               <ActionCard 
                 icon="business-outline" 
-                title="Mis Cocheras" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Cocheras Globales" : "Mis Cocheras"} 
                 color="#24C6A5" 
                 onPress={() => navigation.navigate('MyParkings')}
               />
               <ActionCard 
                 icon="analytics-outline" 
-                title="Ganancias" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Ganancias Globales" : "Ganancias"} 
                 color="#764ba2" 
                 onPress={() => navigation.navigate('OwnerEarnings')}
               />
               <ActionCard 
                 icon="list-outline" 
-                title="Reservas Recibidas" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Reservas Globales" : "Reservas Recibidas"} 
                 color="#FF8C00" 
                 onPress={() => navigation.navigate('OwnerBookings')}
               />

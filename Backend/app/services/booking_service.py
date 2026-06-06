@@ -142,7 +142,8 @@ class BookingService:
                     Invoice.id_booking.in_(
                         db.query(Booking.id_booking).filter(Booking.id_profile == id_profile)
                     ),
-                    PaymentTransaction.gateway_reference != "error"
+                    PaymentTransaction.gateway_reference != "error",
+                    PaymentTransaction.gateway_reference.like("%|%")
                 ).order_by(PaymentTransaction.id_transaction.desc()).first()
                 
                 if last_tx and "|" in last_tx.gateway_reference:

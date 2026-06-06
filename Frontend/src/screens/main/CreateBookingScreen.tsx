@@ -227,16 +227,6 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
             </View>
           </TouchableOpacity>
 
-          <View style={styles.penaltyWarningBox}>
-            <Ionicons name="warning" size={20} color="#FF3B30" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.penaltyWarningTitle}>¡Atención: Política de Multas!</Text>
-              <Text style={styles.penaltyWarningText}>
-                Si llegas más de 15 minutos tarde, el sistema cancelará la reserva automáticamente y se cobrará una <Text style={{fontWeight: 'bold', color: 'white'}}>multa del 50%</Text> del valor de 1 hora.
-              </Text>
-            </View>
-          </View>
-
           {showPicker && (
             Platform.OS === 'web' ? (
               <input
@@ -290,6 +280,16 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+
+          <View style={styles.penaltyWarningBox}>
+            <Ionicons name="warning" size={20} color="#FF3B30" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.penaltyWarningTitle}>¡Atención: Política de Multas!</Text>
+              <Text style={styles.penaltyWarningText}>
+                Si llegas más de 15 minutos tarde, el sistema cancelará la reserva automáticamente y se cobrará una <Text style={{fontWeight: 'bold', color: 'white'}}>multa del 50%</Text> del valor de 1 hora.
+              </Text>
             </View>
           </View>
         </View>

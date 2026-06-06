@@ -197,11 +197,17 @@ def update_status(
 def get_parking_bookings(
     id_parking: int,
     db: Session = Depends(get_db),
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
     # Verificar propiedad del parking
     parking = ParkingService.get_parking_by_id(db, id_parking)
-    if not parking or parking.id_profile != id_profile:
+    role = current_user.get("role")
+    
+    if not parking:
+        raise HTTPException(status_code=404, detail="Parking not found")
+        
+    if role != "dev" and parking.id_profile != id_profile:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
         
     return BookingService.get_parking_bookings(db, id_parking)

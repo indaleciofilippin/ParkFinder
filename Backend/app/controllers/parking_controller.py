@@ -238,10 +238,17 @@ def get_all_parkings_availability(
 def get_parking_monitoring(
     id_parking: int,
     db: Session = Depends(get_db),
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
+    role = current_user.get("role")
+    
     # Verify ownership
-    db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+    if role == "dev":
+        db_parking = db.query(Parking).filter(Parking.id_parking == id_parking).first()
+    else:
+        db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+        
     if not db_parking:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
 
@@ -251,10 +258,17 @@ def get_parking_monitoring(
 def get_parking_realtime_occupancy(
     id_parking: int,
     db: Session = Depends(get_db),
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
+    role = current_user.get("role")
+    
     # Verify ownership
-    db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+    if role == "dev":
+        db_parking = db.query(Parking).filter(Parking.id_parking == id_parking).first()
+    else:
+        db_parking = db.query(Parking).filter(Parking.id_parking == id_parking, Parking.id_profile == id_profile).first()
+        
     if not db_parking:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
     
