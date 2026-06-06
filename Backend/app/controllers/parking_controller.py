@@ -193,9 +193,11 @@ def update_parking(
 def delete_parking(
     id_parking: int, 
     db: Session = Depends(get_db), 
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
-    deleted = ParkingService.delete_parking(db, id_parking=id_parking, id_profile=id_profile)
+    role = current_user.get("role")
+    deleted = ParkingService.delete_parking(db, id_parking=id_parking, id_profile=id_profile, role=role)
     if not deleted:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
     return {"msg": "Parking deleted successfully"}

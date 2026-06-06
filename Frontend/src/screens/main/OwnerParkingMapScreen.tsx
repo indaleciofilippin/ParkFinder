@@ -203,6 +203,15 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
   };
 
   const handleMapPress = async (e: any) => {
+    // Check safely to prevent web crash
+    if (!e || !e.nativeEvent || !e.nativeEvent.coordinate) {
+      if (Platform.OS === 'web' && e && e.latLng) {
+        const coords = { latitude: e.latLng.lat(), longitude: e.latLng.lng() };
+        setSelectedCoordinate(coords);
+        await reverseGeocodeCoords(coords);
+      }
+      return;
+    }
     const coords = e.nativeEvent.coordinate;
     setSelectedCoordinate(coords);
     await reverseGeocodeCoords(coords);
@@ -374,6 +383,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   map: {
+    ...StyleSheet.absoluteFillObject,
+    ...(Platform.OS === 'web' ? { zIndex: -1 } as any : {}),
     width: width,
     height: height,
   },

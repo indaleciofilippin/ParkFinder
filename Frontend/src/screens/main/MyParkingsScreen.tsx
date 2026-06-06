@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../theme/theme';
+import { CustomAlert } from '../../utils/CustomAlert';
 import { parkingApi } from '../../services/api';
 import { i18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
@@ -17,7 +18,7 @@ export const MyParkingsScreen = ({ navigation }: any) => {
 
   const handleAddParking = () => {
     if (!user?.profile?.cbu_cvu) {
-      Alert.alert(
+      CustomAlert.alert(
         'Datos Bancarios Requeridos',
         'Para poder publicar una cochera y recibir los cobros de tus reservas, primero debes configurar tu cuenta bancaria (CBU/CVU).',
         [
@@ -54,7 +55,7 @@ export const MyParkingsScreen = ({ navigation }: any) => {
   };
 
   const handleDeleteParking = (id: number) => {
-    Alert.alert(
+    CustomAlert.alert(
       i18n.t('parkings.title'),
       i18n.t('parkings.delete_confirm'),
       [
@@ -67,7 +68,7 @@ export const MyParkingsScreen = ({ navigation }: any) => {
               await parkingApi.deleteParking(id);
               fetchParkings();
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar la cochera');
+              CustomAlert.alert('Error', 'No se pudo eliminar la cochera');
             }
           }
         }

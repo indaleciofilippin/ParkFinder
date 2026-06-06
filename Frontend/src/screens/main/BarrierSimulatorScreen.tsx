@@ -383,17 +383,23 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         // Show checkout payment breakdown if applicable
         if (response.action === 'check-out' && response.total_charged != null) {
           const total: number = response.total_charged;
-          const fee = Math.round((total / 1.1) * 0.1 * 100) / 100;
-          const subtotal = Math.round((total - fee) * 100) / 100;
           showAlert(
             'Salida Autorizada',
-            `Subtotal estacionamiento: $${subtotal.toFixed(2)}\nFee de servicio (10%): $${fee.toFixed(2)}\n---\nTotal cobrado: $${total.toFixed(2)}`
+            `Total cobrado automáticamente a la tarjeta vinculada: $${total.toFixed(2)}`
           );
         }
 
         // Open barrier
         setBarrierState('open');
         addLog('[FÍSICO] Motor activado. Abriendo barrera...');
+        
+        // Silently sync the latest event timestamp to prevent the polling interval from triggering a duplicate open
+        bookingApi.getLatestBarrierEvent(selectedParking.id_parking).then(res => {
+          if (res.has_event && res.event) {
+            setLastEventTimestamp(res.event.timestamp);
+          }
+        }).catch(err => console.log('Silencing sync error', err));
+
         animateBarrier(1, () => {
           addLog('[FÍSICO] Barrera totalmente ABIERTA. Vehículo puede pasar.');
 
