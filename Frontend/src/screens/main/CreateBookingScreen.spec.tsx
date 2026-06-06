@@ -4,11 +4,15 @@ import { CreateBookingScreen } from './CreateBookingScreen';
 import { bookingApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Alert } from 'react-native';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 jest.mock('../../services/api', () => ({
   bookingApi: {
     createBooking: jest.fn(),
-    getSavedPaymentMethod: jest.fn().mockResolvedValue({ last_four: '1234', payment_method_id: 'visa' }),
+    getSavedPaymentMethod: jest.fn().mockResolvedValue({ last_four: '1234', payment_method_id: 'visa', has_saved_card: true }),
+  },
+  vehicleApi: {
+    getVehicles: jest.fn().mockResolvedValue([{ id_vehicle: 1, license_plate: 'ABC-123', model: 'Auto' }]),
   },
 }));
 
@@ -23,7 +27,7 @@ jest.mock('react-native-webview', () => {
   };
 });
 
-jest.spyOn(Alert, 'alert');
+jest.spyOn(CustomAlert, 'alert');
 
 describe('CreateBookingScreen - Unit Tests', () => {
   const mockNavigation = { reset: jest.fn(), goBack: jest.fn() };
@@ -50,8 +54,8 @@ describe('CreateBookingScreen - Unit Tests', () => {
     const confirmBtn = getByText('Confirmar Reserva');
     
     // Override the alert to immediately call the onPress callback
-    (Alert.alert as jest.Mock).mockImplementation((title, msg, buttons) => {
-        if (title === '¡Reserva Confirmada!') {
+    (CustomAlert.alert as jest.Mock).mockImplementation((title, msg, buttons) => {
+        if (title === 'Reserva Confirmada') {
             buttons[0].onPress();
         }
     });

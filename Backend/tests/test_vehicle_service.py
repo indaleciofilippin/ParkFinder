@@ -64,7 +64,7 @@ class TestVehicleService(unittest.TestCase):
                 model=model
             )
 
-        self.assertIn(f"License plate {license_plate} is already registered and active", str(context.exception))
+        self.assertIn("Ya tienes la patente ABC-123 registrada en tu cuenta", str(context.exception))
         self.db.add.assert_not_called()
         self.db.commit.assert_not_called()
 

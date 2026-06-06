@@ -6,7 +6,11 @@ export const CustomAlert = {
     if (Platform.OS === 'web') {
       showWebAlert(title, message || '', buttons);
     } else {
-      Alert.alert(title, message, buttons, options);
+      if (options) {
+        Alert.alert(title, message, buttons, options);
+      } else {
+        Alert.alert(title, message, buttons);
+      }
     }
   }
 };

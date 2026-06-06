@@ -4,6 +4,7 @@ import { MyParkingsScreen } from './MyParkingsScreen';
 import { parkingApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Alert } from 'react-native';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 jest.mock('../../services/api', () => ({
   parkingApi: {
@@ -22,7 +23,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
 }));
 
-jest.spyOn(Alert, 'alert');
+jest.spyOn(CustomAlert, 'alert');
 
 describe('MyParkingsScreen - Unit Tests', () => {
   const mockNavigation = { navigate: jest.fn(), goBack: jest.fn() };
@@ -62,7 +63,7 @@ describe('MyParkingsScreen - Unit Tests', () => {
     const addBtn = getByText('Registrar Cochera');
     fireEvent.press(addBtn);
 
-    expect(Alert.alert).toHaveBeenCalledWith(
+    expect(CustomAlert.alert).toHaveBeenCalledWith(
       'Datos Bancarios Requeridos',
       expect.any(String),
       expect.any(Array)
