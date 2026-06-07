@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme/theme';
+import { CustomAlert } from '../../utils/CustomAlert';
 import { bookingApi } from '../../services/api';
 import { i18n } from '../../i18n';
 import { formatCurrency } from '../../utils/formatters';
@@ -49,7 +50,7 @@ export const MyBookingsScreen = ({ navigation }: any) => {
 
     const isLateCancel = minutesUntilStart < 15;
 
-    Alert.alert(
+    CustomAlert.alert(
       '¿Cancelar reserva?',
       isLateCancel 
         ? '⚠️ AVISO IMPORTANTE: Estás cancelando a menos de 15 minutos del inicio de tu turno.\n\nSe aplicará una penalidad automática del 50% de 1 hora de estadía a tu tarjeta registrada.'
@@ -63,11 +64,11 @@ export const MyBookingsScreen = ({ navigation }: any) => {
             try {
               setIsLoading(true);
               const result = await bookingApi.updateBookingStatus(id_booking, 'cancelled');
-              Alert.alert('Estado', result.message);
+              CustomAlert.alert('Estado', result.message);
               fetchBookings();
             } catch (error: any) {
               const msg = error.response?.data?.detail || error.message || 'No se pudo cancelar la reserva';
-              Alert.alert('Error', msg);
+              CustomAlert.alert('Error', msg);
             } finally {
               setIsLoading(false);
             }

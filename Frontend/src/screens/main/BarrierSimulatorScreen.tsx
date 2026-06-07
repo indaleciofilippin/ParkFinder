@@ -48,6 +48,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const [autoSync, setAutoSync] = useState(true);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string | null>(null);
   const [scanningPlate, setScanningPlate] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(Platform.OS === 'web');
 
   // Real-time Camera Scanner states
   const [realtimeCameraActive, setRealtimeCameraActive] = useState(false);
@@ -134,7 +135,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
         if (photo && photo.uri) {
           addLog('[LECTOR IA] Analizando fotograma en microservicio de IA...');
-          const response = await bookingApi.scanBarrierPlateImage(photo.uri);
+          const response = await bookingApi.scanBarrierPlateImage(photo.uri, isMirrored);
 
           if (response.success && response.plate) {
             const detectedPlate = response.plate.toUpperCase();
@@ -557,11 +558,13 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               <Text style={styles.cameraSectionLabel}>ESCANEO DE PATENTE EN VIVO (IA)</Text>
             </View>
             <View style={styles.cameraContainer}>
-              <CameraView
-                style={StyleSheet.absoluteFillObject}
-                ref={cameraRef}
-                facing="back"
-              />
+              <View style={[StyleSheet.absoluteFillObject, { transform: [{ scaleX: isMirrored ? -1 : 1 }] }]}>
+                <CameraView
+                  style={StyleSheet.absoluteFillObject}
+                  ref={cameraRef}
+                  facing="back"
+                />
+              </View>
               {/* Target guidelines frame */}
               <View style={styles.scannerOverlay}>
                 <View style={styles.scanTargetBox}>
