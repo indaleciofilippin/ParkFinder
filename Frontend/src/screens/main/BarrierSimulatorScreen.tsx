@@ -596,6 +596,20 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                         : "Apunta el recuadro a la patente del vehículo"}
                 </Text>
               </View>
+
+              {/* Controles de la cámara superpuestos */}
+              <View style={styles.cameraControlsOverlay}>
+                <TouchableOpacity 
+                  style={[styles.cameraOverlayBtn, isMirrored && styles.cameraOverlayBtnActive]} 
+                  onPress={() => setIsMirrored(!isMirrored)}
+                >
+                  <Ionicons name="swap-horizontal-outline" size={20} color={isMirrored ? '#fff' : '#00f2fe'} />
+                  <Text style={[styles.cameraOverlayBtnText, isMirrored && styles.cameraOverlayBtnTextActive]}>
+                    Modo Espejo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
             </View>
           </View>
         )}
@@ -1317,5 +1331,34 @@ const styles = StyleSheet.create({
     right: -2,
     borderBottomWidth: 3,
     borderRightWidth: 3,
+  },
+  cameraControlsOverlay: {
+    position: 'absolute',
+    top: 15,
+    left: 15,
+    flexDirection: 'row',
+  },
+  cameraOverlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.5)',
+  },
+  cameraOverlayBtnActive: {
+    backgroundColor: 'rgba(0, 242, 254, 0.3)',
+    borderColor: '#00f2fe',
+  },
+  cameraOverlayBtnText: {
+    color: '#00f2fe',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  cameraOverlayBtnTextActive: {
+    color: '#fff',
   }
 });
