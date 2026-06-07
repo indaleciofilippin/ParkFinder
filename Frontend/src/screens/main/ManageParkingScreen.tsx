@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomAlert } from '../../utils/CustomAlert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../theme/theme';
 import { parkingApi, categoryApi } from '../../services/api';
@@ -58,7 +59,7 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
 
   const handleAddLocalCategory = () => {
     if (!newCatName || !newCatCapacity || !newCatPrice) {
-      Alert.alert('Error', 'Por favor completa todos los campos del tipo de lugar');
+      CustomAlert.alert('Error', 'Por favor completa todos los campos del tipo de lugar');
       return;
     }
 
@@ -66,11 +67,11 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
     const capacity = parseInt(newCatCapacity);
 
     if (isNaN(price) || price <= 0) {
-      Alert.alert('Error', 'El precio debe ser un número válido');
+      CustomAlert.alert('Error', 'El precio debe ser un número válido');
       return;
     }
     if (isNaN(capacity) || capacity <= 0) {
-      Alert.alert('Error', 'La capacidad debe ser un número válido');
+      CustomAlert.alert('Error', 'La capacidad debe ser un número válido');
       return;
     }
 
@@ -91,7 +92,7 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
   const removeCategory = async (index: number, id_category?: number) => {
     if (id_category && existingParking) {
       // If it's an existing category on an existing parking, delete from DB
-      Alert.alert('Eliminar', '¿Estás seguro de eliminar este tipo de lugar?', [
+      CustomAlert.alert('Eliminar', '¿Estás seguro de eliminar este tipo de lugar?', [
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Eliminar', 
@@ -101,7 +102,7 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
               await categoryApi.deleteCategory(existingParking.id_parking, id_category);
               setCategories(categories.filter((_, i) => i !== index));
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar de la base de datos');
+              CustomAlert.alert('Error', 'No se pudo eliminar de la base de datos');
             }
           }
         }
@@ -114,15 +115,15 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
 
   const handleGlobalSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Ingresa el nombre de la cochera');
+      CustomAlert.alert('Error', 'Ingresa el nombre de la cochera');
       return;
     }
     if (categories.length === 0) {
-      Alert.alert('Error', 'Debes agregar al menos un tipo de lugar (ej: Autos)');
+      CustomAlert.alert('Error', 'Debes agregar al menos un tipo de lugar (ej: Autos)');
       return;
     }
     if (!location) {
-      Alert.alert('Ubicación requerida', 'Por favor fija la ubicación de tu cochera en el mapa');
+      CustomAlert.alert('Ubicación requerida', 'Por favor fija la ubicación de tu cochera en el mapa');
       return;
     }
 
@@ -161,11 +162,16 @@ export const ManageParkingScreen = ({ navigation, route }: any) => {
         }
       }
 
-      Alert.alert('Éxito', 'Cochera guardada correctamente', [
-        { text: 'OK', onPress: () => navigation.navigate('MyParkings') }
-      ]);
+      if (Platform.OS === 'web') {
+        window.alert('Cochera guardada correctamente');
+        navigation.goBack();
+      } else {
+        CustomAlert.alert('Éxito', 'Cochera guardada correctamente', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Error al guardar la configuración');
+      CustomAlert.alert('Error', error.message || 'Error al guardar la configuración');
     } finally {
       setIsLoading(false);
     }

@@ -4,10 +4,14 @@ from app.models.vehicle import Vehicle
 class VehicleService:
     @staticmethod
     def create_vehicle(db: Session, id_profile: int, license_plate: str, model: str):
-        # Verificar si la patente ya existe (en vehículos activos)
-        existing = db.query(Vehicle).filter(Vehicle.license_plate == license_plate, Vehicle.is_active == True).first()
+        # Verificar si la patente ya existe (en vehículos activos del mismo usuario)
+        existing = db.query(Vehicle).filter(
+            Vehicle.license_plate == license_plate, 
+            Vehicle.is_active == True,
+            Vehicle.id_profile == id_profile
+        ).first()
         if existing:
-            raise ValueError(f"License plate {license_plate} is already registered and active")
+            raise ValueError(f"Ya tienes la patente {license_plate} registrada en tu cuenta")
             
         db_vehicle = Vehicle(
             id_profile=id_profile,
@@ -35,14 +39,15 @@ class VehicleService:
             return None
         
         if license_plate:
-            # Verificar si la nueva patente ya existe en otro vehículo ACTIVO
+            # Verificar si la nueva patente ya existe en otro vehículo ACTIVO del MISMO USUARIO
             existing = db.query(Vehicle).filter(
                 Vehicle.license_plate == license_plate, 
                 Vehicle.is_active == True,
-                Vehicle.id_vehicle != id_vehicle
+                Vehicle.id_vehicle != id_vehicle,
+                Vehicle.id_profile == id_profile
             ).first()
             if existing:
-                raise ValueError(f"License plate {license_plate} is already registered by another vehicle")
+                raise ValueError(f"Ya tienes la patente {license_plate} registrada en tu cuenta")
             db_vehicle.license_plate = license_plate
         if model:
             db_vehicle.model = model

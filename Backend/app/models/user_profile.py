@@ -8,3 +8,6 @@ class UserProfile(BaseModel):
     first_name = Column(Text, nullable=False)
     last_name = Column(Text, nullable=False)
     phone = Column(String(20), nullable=True)
+    cbu_cvu = Column(String(255), nullable=True)
+    bank_alias = Column(String(255), nullable=True)
+    cuit = Column(String(255), nullable=True)

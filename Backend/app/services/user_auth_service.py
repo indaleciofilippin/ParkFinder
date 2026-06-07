@@ -80,18 +80,24 @@ class UserAuthService:
                 f_name = data.first_name
                 l_name = data.last_name
                 phone = data.phone
+                cbu = data.cbu_cvu
+                alias = data.bank_alias
+                cuit_val = data.cuit
                 
                 if data.profile:
                     if data.profile.first_name: f_name = data.profile.first_name
                     if data.profile.last_name: l_name = data.profile.last_name
                     if data.profile.phone: phone = data.profile.phone
+                    if hasattr(data.profile, 'cbu_cvu') and data.profile.cbu_cvu: cbu = data.profile.cbu_cvu
+                    if hasattr(data.profile, 'bank_alias') and data.profile.bank_alias: alias = data.profile.bank_alias
+                    if hasattr(data.profile, 'cuit') and data.profile.cuit: cuit_val = data.profile.cuit
 
-                if f_name is not None:
-                    profile.first_name = f_name
-                if l_name is not None:
-                    profile.last_name = l_name
-                if phone is not None:
-                    profile.phone = phone
+                if f_name is not None: profile.first_name = f_name
+                if l_name is not None: profile.last_name = l_name
+                if phone is not None: profile.phone = phone
+                if cbu is not None: profile.cbu_cvu = cbu
+                if alias is not None: profile.bank_alias = alias
+                if cuit_val is not None: profile.cuit = cuit_val
             
             # Actualizar Rol si es necesario
             if hasattr(data, 'role') and data.role:

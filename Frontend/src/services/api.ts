@@ -376,11 +376,18 @@ export const bookingApi = {
     }
     
     const formData = new FormData();
-    formData.append('file', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'plate_capture.jpg',
-    } as any);
+
+    if (Platform.OS === 'web') {
+      const res = await fetch(imageUri);
+      const blob = await res.blob();
+      formData.append('file', blob, 'plate_capture.jpg');
+    } else {
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'plate_capture.jpg',
+      } as any);
+    }
 
     const response = await fetch(`${API_URL}/bookings/barrier/scan-plate`, {
       method: 'POST',

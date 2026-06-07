@@ -47,7 +47,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.trim().length > 2) {
+      if (searchQuery.trim().length > 2 && searchQuery !== selectedCoordinate?.address) {
         fetchSuggestions(searchQuery);
       } else {
         setSuggestions([]);
@@ -61,7 +61,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
     console.log(`🔍 [Geocoding] Buscando sugerencias para: "${query}"`);
     try {
       const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=es`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=8&lat=${region.latitude}&lon=${region.longitude}`,
         {
           headers: {
             'User-Agent': 'ParkFinder-App/1.0.0 (contact: info@parkfinder.com)',
@@ -130,7 +130,7 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
   const reverseGeocodeCoords = async (coords: { latitude: number; longitude: number }) => {
     try {
       const resp = await fetch(
-        `https://photon.komoot.io/reverse?lon=${coords.longitude}&lat=${coords.latitude}&lang=es`,
+        `https://photon.komoot.io/reverse?lon=${coords.longitude}&lat=${coords.latitude}`,
         {
           headers: {
             'User-Agent': 'ParkFinder-App/1.0.0 (contact: info@parkfinder.com)'
@@ -203,6 +203,15 @@ export const OwnerParkingMapScreen = ({ navigation, route }: any) => {
   };
 
   const handleMapPress = async (e: any) => {
+    // Check safely to prevent web crash
+    if (!e || !e.nativeEvent || !e.nativeEvent.coordinate) {
+      if (Platform.OS === 'web' && e && e.latLng) {
+        const coords = { latitude: e.latLng.lat(), longitude: e.latLng.lng() };
+        setSelectedCoordinate(coords);
+        await reverseGeocodeCoords(coords);
+      }
+      return;
+    }
     const coords = e.nativeEvent.coordinate;
     setSelectedCoordinate(coords);
     await reverseGeocodeCoords(coords);
@@ -374,6 +383,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   map: {
+    ...StyleSheet.absoluteFillObject,
+    ...(Platform.OS === 'web' ? { zIndex: -1 } as any : {}),
     width: width,
     height: height,
   },

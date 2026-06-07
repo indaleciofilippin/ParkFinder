@@ -149,7 +149,15 @@ export const OwnerEarningsScreen = ({ navigation }: any) => {
           </View>
 
           {/* Detailed breakdown Cards */}
-          <Text style={styles.sectionTitle}>Resumen Financiero</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, marginLeft: 4, marginRight: 4 }}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 0 }]}>Resumen Financiero</Text>
+            <TouchableOpacity 
+              style={{ backgroundColor: 'rgba(36, 198, 165, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(36, 198, 165, 0.3)' }}
+              onPress={() => navigation.navigate('BankDetails')}
+            >
+              <Text style={{ color: theme.colors.primary, fontWeight: 'bold', fontSize: 12 }}>Configurar CBU</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailCard}>

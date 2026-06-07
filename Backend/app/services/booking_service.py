@@ -78,7 +78,23 @@ class BookingService:
         # Verificar que el vehículo pertenezca al usuario
         vehicle = db.query(Vehicle).filter_by(id_vehicle=id_vehicle, id_profile=id_profile).first()
         if not vehicle:
-            raise ValueError("Vehicle not found or doesn't belong to the user")
+            raise ValueError("El vehículo seleccionado no existe o no te pertenece")
+
+        # Verificar si existe CUALQUIER reserva que se solape y tenga la misma patente física (incluso de otro usuario)
+        from sqlalchemy import func
+        clean_plate_to_book = vehicle.license_plate.replace("-", "").replace(" ", "").upper()
+        
+        overlapping_plate = db.query(Booking).join(Vehicle, Booking.id_vehicle == Vehicle.id_vehicle).filter(
+            func.replace(func.replace(Vehicle.license_plate, '-', ''), ' ', '').ilike(clean_plate_to_book),
+            Booking.current_status.in_(["pending", "active"]),
+            and_(
+                Booking.expected_start_time < end_time,
+                Booking.expected_end_time > start_time
+            )
+        ).first()
+
+        if overlapping_plate:
+            raise ValueError("Este vehículo ya tiene una reserva en este horario (posiblemente realizada por otra cuenta que también tiene registrada esta patente).")
 
         try:
             # 2. Control de Concurrencia (Locking)
@@ -142,7 +158,8 @@ class BookingService:
                     Invoice.id_booking.in_(
                         db.query(Booking.id_booking).filter(Booking.id_profile == id_profile)
                     ),
-                    PaymentTransaction.gateway_reference != "error"
+                    PaymentTransaction.gateway_reference != "error",
+                    PaymentTransaction.gateway_reference.like("%|%")
                 ).order_by(PaymentTransaction.id_transaction.desc()).first()
                 
                 if last_tx and "|" in last_tx.gateway_reference:
@@ -195,19 +212,144 @@ class BookingService:
 
     @staticmethod
     def get_user_bookings(db: Session, id_profile: int) -> List[Booking]:
+        from app.models.parking import Parking
         bookings = db.query(Booking).filter_by(id_profile=id_profile).all()
         for b in bookings:
             v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
             b.license_plate = v.license_plate if v else "Unknown"
+            p = db.query(Parking).filter_by(id_parking=b.id_parking).first()
+            b.parking_name = p.name if p else f"Cochera {b.id_parking}"
         return bookings
 
     @staticmethod
     def get_parking_bookings(db: Session, id_parking: int) -> List[Booking]:
+        from app.models.parking import Parking
         bookings = db.query(Booking).filter_by(id_parking=id_parking).all()
         for b in bookings:
             v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
             b.license_plate = v.license_plate if v else "Unknown"
+            p = db.query(Parking).filter_by(id_parking=b.id_parking).first()
+            b.parking_name = p.name if p else f"Cochera {b.id_parking}"
         return bookings
+
+    @staticmethod
+    def _simulate_instant_payout(db: Session, id_parking: int, amount: float):
+        from app.models.parking import Parking
+        from app.models.user_profile import UserProfile
+        parking = db.query(Parking).filter_by(id_parking=id_parking).first()
+        if not parking:
+            return
+
+        owner_profile = db.query(UserProfile).filter_by(id_profile=parking.id_profile).first()
+        if not owner_profile:
+            return
+
+        cbu = owner_profile.cbu_cvu or "NO CONFIGURADO"
+        alias = owner_profile.bank_alias or "NO CONFIGURADO"
+
+        print("\n" + "="*50)
+        print(f"💸 [SIMULATED PAYOUT] TRANSFERENCIA INSTANTÁNEA")
+        print(f"  Beneficiario: {owner_profile.first_name} {owner_profile.last_name}")
+        print(f"  CBU/CVU: {cbu} | Alias: {alias}")
+        print(f"  Monto a liquidar: ${amount:.2f}")
+        print(f"  Concepto: Ganancias de Reserva en Cochera #{id_parking}")
+        print("="*50 + "\n")
+
+    @staticmethod
+    def _charge_penalty(db: Session, booking: Booking, reason: str) -> None:
+        """Helper to charge 50% of the hourly rate as penalty."""
+        from app.models.user_profile import UserProfile
+        from app.models.user_auth import UserAuth
+
+        # Penalty is 50% of the hourly base rate. The user pays this exactly.
+        total_amount = booking.applied_rate * Decimal("0.50")
+        service_fee = total_amount * Decimal("0.10") # 10% platform fee
+        owner_revenue = total_amount - service_fee
+        penalty_subtotal = total_amount
+
+        invoice = db.query(Invoice).filter(
+            Invoice.id_booking == booking.id_booking,
+            Invoice.payment_status.in_(["pending", "failed"])
+        ).first()
+
+        if not invoice:
+            print(f"⚠️ [PENALTY] No pending invoice found for booking {booking.id_booking}")
+            return
+
+        transaction = db.query(PaymentTransaction).filter_by(id_invoice=invoice.id_invoice, status="pending").first()
+        if not transaction:
+            print(f"⚠️ [PENALTY] No pending transaction found for booking {booking.id_booking}")
+            return
+
+        try:
+            parts = transaction.gateway_reference.split("|")
+            customer_id = parts[0]
+            card_id = parts[1]
+            payment_method_id = parts[2] if len(parts) > 2 else "visa"
+
+            driver_profile = db.query(UserProfile).filter_by(id_profile=booking.id_profile).first()
+            driver_auth = db.query(UserAuth).filter_by(id_user_auth=driver_profile.id_auth).first() if driver_profile else None
+            driver_email = driver_auth.email if driver_auth else "driver@parkfinder.com"
+
+            payment_service = PaymentService()
+            payment_result = payment_service.charge_saved_card(
+                customer_id=customer_id,
+                card_id=card_id,
+                amount=float(total_amount),
+                payment_method_id=payment_method_id,
+                email=driver_email
+            )
+            payment_status = "paid" if payment_result["status"] == "approved" else "failed"
+            gateway_reference = payment_result["gateway_reference"]
+        except Exception as e:
+            print(f"⚠️ [PENALTY] Error charging penalty: {e}")
+            payment_status = "failed"
+            gateway_reference = "error"
+            payment_method_id = "credit_card"
+
+        now = datetime.now(BA_TZ)
+        invoice.subtotal_parking = penalty_subtotal
+        invoice.service_fee = service_fee
+        invoice.total_amount = total_amount
+        invoice.platform_revenue = service_fee
+        invoice.payment_status = payment_status
+        invoice.issued_at = now
+
+        charge_tx = PaymentTransaction(
+            id_invoice=invoice.id_invoice,
+            gateway_reference=gateway_reference,
+            payment_method=payment_method_id,
+            amount_attempted=total_amount,
+            status="approved" if payment_status == "paid" else "rejected",
+            attempted_at=now
+        )
+        db.add(charge_tx)
+        
+        if payment_status == "paid":
+            BookingService._simulate_instant_payout(db, booking.id_parking, float(owner_revenue))
+        # Note: db.commit() is intentionally left to the caller to avoid partial commits
+
+    @staticmethod
+    def process_no_shows(db: Session):
+        """Processes bookings that missed their expected start time by > 15 mins."""
+        now = datetime.now(BA_TZ)
+        pending_bookings = db.query(Booking).filter_by(current_status="pending").all()
+        
+        for booking in pending_bookings:
+            expected_start = booking.expected_start_time.replace(tzinfo=BA_TZ) if booking.expected_start_time.tzinfo is None else booking.expected_start_time.astimezone(BA_TZ)
+            if now > expected_start + timedelta(minutes=15):
+                print(f"⏰ [NO-SHOW] Booking {booking.id_booking} marked as NO-SHOW")
+                booking.current_status = "no_show"
+                
+                BookingService._charge_penalty(db, booking, "No-Show automático (> 15 min)")
+                
+                history = BookingHistory(
+                    id_booking=booking.id_booking,
+                    status="no_show",
+                    changed_at=now
+                )
+                db.add(history)
+                db.commit()
 
     @staticmethod
     def update_booking_status(db: Session, id_booking: int, status: str, id_profile: Optional[int] = None):
@@ -221,12 +363,14 @@ class BookingService:
         # Política de Cancelación
         if status == "cancelled":
             now = datetime.now(BA_TZ)
-            time_until_start = booking.expected_start_time - now
+            expected_start = booking.expected_start_time.replace(tzinfo=BA_TZ) if booking.expected_start_time.tzinfo is None else booking.expected_start_time.astimezone(BA_TZ)
+            time_until_start = expected_start - now
             
-            if time_until_start < timedelta(minutes=30):
-                # Si falta menos de 30 min, se cancela pero con penalidad (no hay reembolso)
+            if time_until_start < timedelta(minutes=15):
+                # Si falta menos de 15 min, se cancela pero con penalidad
                 booking.current_status = "cancelled_with_penalty"
-                msg = "Cancelación fuera de término. Se aplicará el cobro total de la reserva."
+                msg = "Cancelación tardía. Se aplicó el cobro de penalidad (50% de 1 hora)."
+                BookingService._charge_penalty(db, booking, "Cancelación tardía (< 15 min)")
             else:
                 booking.current_status = "cancelled"
                 msg = "Reserva cancelada sin cargo."
@@ -354,9 +498,10 @@ class BookingService:
             # Calculate hours rounded up, minimum 1 hour
             hours = max(1.0, math.ceil(duration_seconds / 3600.0))
             
-            subtotal = Decimal(str(hours)) * active_booking.applied_rate
-            service_fee = subtotal * Decimal("0.10") # 10% platform fee
-            total_amount = subtotal + service_fee
+            total_amount = Decimal(str(hours)) * active_booking.applied_rate
+            service_fee = total_amount * Decimal("0.05") # 5% platform fee
+            owner_revenue = total_amount - service_fee
+            subtotal = total_amount
             platform_revenue = service_fee
             
             payment_status = "failed"
@@ -435,6 +580,9 @@ class BookingService:
                 attempted_at=now
             )
             db.add(charge_tx)
+            
+            if payment_status == "paid":
+                BookingService._simulate_instant_payout(db, id_parking, float(owner_revenue))
             
             if payment_status != "paid":
                 db.commit() # Commit the failed invoice/transaction status

@@ -106,7 +106,7 @@ export const OwnerBookingsScreen = ({ navigation }: any) => {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bookingTitle}>Reserva #{item.id_booking}</Text>
+              <Text style={styles.bookingTitle} numberOfLines={1}>{item.parking_name || `Reserva #${item.id_booking}`}</Text>
               <Text style={styles.driverId}>ID Conductor: {item.id_profile}</Text>
             </View>
             <View style={[styles.statusChip, { backgroundColor: statusInfo.bg }]}>

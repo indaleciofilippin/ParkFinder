@@ -56,6 +56,7 @@ class BookingResponse(BaseModel):
     applied_rate: float
     current_status: str
     license_plate: Optional[str] = None
+    parking_name: Optional[str] = None
     invoice_total: Optional[float] = None
     invoice_status: Optional[str] = None
 
@@ -197,11 +198,17 @@ def update_status(
 def get_parking_bookings(
     id_parking: int,
     db: Session = Depends(get_db),
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
     # Verificar propiedad del parking
     parking = ParkingService.get_parking_by_id(db, id_parking)
-    if not parking or parking.id_profile != id_profile:
+    role = current_user.get("role")
+    
+    if not parking:
+        raise HTTPException(status_code=404, detail="Parking not found")
+        
+    if role != "dev" and parking.id_profile != id_profile:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
         
     return BookingService.get_parking_bookings(db, id_parking)
@@ -293,23 +300,23 @@ def scan_plate(file: UploadFile = File(...)):
             urls_to_try = []
             if anpr_env_url:
                 urls_to_try.append(f"{anpr_env_url.rstrip('/')}/scan")
-            
-            urls_to_try.extend([
-                "http://anpr:8001/scan",
-                "http://host.docker.internal:8001/scan",
-                "http://192.168.1.6:8001/scan",
-                "http://localhost:8001/scan"
-            ])
+            else:
+                urls_to_try.extend([
+                    "http://localhost:8001/scan",
+                    "http://192.168.1.6:8001/scan",
+                    "http://anpr:8001/scan"
+                ])
+                
             import time
             response_json = None
             last_err = None
             
             for url in urls_to_try:
-                for attempt in range(1, 4):
+                for attempt in range(1, 2): # Un solo intento para no colgar el simulador web
                     try:
-                        print(f"📡 [BACKEND] Enviando imagen a microservicio: {url} (Intento {attempt}/3)")
+                        print(f"📡 [BACKEND] Enviando imagen a microservicio: {url} (Intento {attempt}/1)")
                         with open(temp_file_path, "rb") as f:
-                            response = requests.post(url, files={"file": (file.filename, f, file.content_type)}, timeout=8)
+                            response = requests.post(url, files={"file": (file.filename, f, file.content_type)}, timeout=3.5)
                         if response.status_code == 200:
                             response_json = response.json()
                             break
@@ -320,8 +327,8 @@ def scan_plate(file: UploadFile = File(...)):
                         last_err = str(ex)
                         print(f"⚠️ [BACKEND] Error de conexión a {url} (Intento {attempt}): {last_err}")
                     
-                    if attempt < 3:
-                        time.sleep(1.5)
+                    if attempt < 1:
+                        time.sleep(1.0)
                 if response_json:
                     break
                     

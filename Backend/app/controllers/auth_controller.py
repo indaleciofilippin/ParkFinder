@@ -45,6 +45,9 @@ class UserProfileView(BaseModel):
     first_name: str
     last_name: str
     phone: Optional[str] = None
+    cbu_cvu: Optional[str] = None
+    bank_alias: Optional[str] = None
+    cuit: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -65,6 +68,9 @@ class UserProfileUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    cbu_cvu: Optional[str] = None
+    bank_alias: Optional[str] = None
+    cuit: Optional[str] = None
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
@@ -75,6 +81,9 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    cbu_cvu: Optional[str] = None
+    bank_alias: Optional[str] = None
+    cuit: Optional[str] = None
     profile: Optional[UserProfileUpdate] = None
 
     @validator("role")

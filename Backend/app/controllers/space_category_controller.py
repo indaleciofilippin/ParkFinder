@@ -4,6 +4,7 @@ from app.core.config import SessionLocal
 from app.services.space_category_service import SpaceCategoryService
 from app.services.parking_service import ParkingService
 from app.controllers.parking_controller import verify_park_role
+from app.core.security import get_current_user
 from app.views.base_view import BaseModel
 from typing import List, Optional
 from decimal import Decimal
@@ -39,9 +40,11 @@ class CategoryResponse(BaseModel):
     class Config:
         from_attributes = True
 
-def check_parking_ownership(id_parking: int, id_profile: int, db: Session):
+def check_parking_ownership(id_parking: int, id_profile: int, db: Session, role: str = None):
     parking = ParkingService.get_parking_by_id(db, id_parking)
-    if not parking or parking.id_profile != id_profile:
+    if not parking:
+        raise HTTPException(status_code=404, detail="Parking not found")
+    if role != "dev" and parking.id_profile != id_profile:
         raise HTTPException(status_code=404, detail="Parking not found or not owned by user")
     return parking
 
@@ -86,9 +89,11 @@ def delete_category(
     id_parking: int,
     id_category: int,
     db: Session = Depends(get_db),
-    id_profile: int = Depends(verify_park_role)
+    id_profile: int = Depends(verify_park_role),
+    current_user: dict = Depends(get_current_user)
 ):
-    check_parking_ownership(id_parking, id_profile, db)
+    role = current_user.get("role")
+    check_parking_ownership(id_parking, id_profile, db, role)
     category_in_parking = next(
         (
             category

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CustomAlert } from '../../utils/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -31,24 +32,32 @@ export const HomeScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleCancelBooking = async (id_booking: number) => {
-    Alert.alert(
+  const handleCancelBooking = (booking: any) => {
+    const startTime = new Date(booking.expected_start_time);
+    const now = new Date();
+    const minutesUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60);
+
+    const isLateCancel = minutesUntilStart < 15;
+
+    CustomAlert.alert(
       '¿Cancelar reserva?',
-      'Si cancelas con menos de 30 minutos de antelación, se aplicará el cobro total.',
+      isLateCancel 
+        ? '⚠️ AVISO IMPORTANTE: Estás cancelando a menos de 15 minutos del inicio de tu turno.\n\nSe aplicará una penalidad automática del 50% de 1 hora de estadía a tu tarjeta registrada.'
+        : '¿Estás seguro de que deseas cancelar esta reserva?',
       [
-        { text: 'Volver', style: 'cancel' },
+        { text: 'No, mantener', style: 'cancel' },
         { 
-          text: 'Confirmar Cancelación', 
+          text: 'Sí, cancelar', 
           style: 'destructive',
           onPress: async () => {
             try {
               setIsLoading(true);
-              const result = await bookingApi.updateBookingStatus(id_booking, 'cancelled');
-              Alert.alert('Estado', result.message);
+              const result = await bookingApi.updateBookingStatus(booking.id_booking, 'cancelled');
+              CustomAlert.alert('Estado', result.message);
               fetchBookings();
             } catch (error: any) {
-              const msg = error.response?.data?.detail || error.message;
-              Alert.alert('Error', msg);
+              const msg = error.response?.data?.detail || error.message || 'No se pudo cancelar la reserva';
+              CustomAlert.alert('Error', msg);
             } finally {
               setIsLoading(false);
             }
@@ -180,19 +189,19 @@ export const HomeScreen = ({ navigation }: any) => {
             <>
               <ActionCard 
                 icon="business-outline" 
-                title="Mis Cocheras" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Cocheras Globales" : "Mis Cocheras"} 
                 color="#24C6A5" 
                 onPress={() => navigation.navigate('MyParkings')}
               />
               <ActionCard 
                 icon="analytics-outline" 
-                title="Ganancias" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Ganancias Globales" : "Ganancias"} 
                 color="#764ba2" 
                 onPress={() => navigation.navigate('OwnerEarnings')}
               />
               <ActionCard 
                 icon="list-outline" 
-                title="Reservas Recibidas" 
+                title={(user?.role === 'dev' || user?.role === 'admin') ? "Reservas Globales" : "Reservas Recibidas"} 
                 color="#FF8C00" 
                 onPress={() => navigation.navigate('OwnerBookings')}
               />
@@ -234,7 +243,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   <Ionicons name="calendar" size={24} color={theme.colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.bookingTitle}>Reserva #{booking.id_booking}</Text>
+                  <Text style={styles.bookingTitle} numberOfLines={1}>{booking.parking_name || `Reserva #${booking.id_booking}`}</Text>
                   <Text style={styles.bookingDate}>
                     {new Date(booking.expected_start_time).toLocaleDateString()} - {new Date(booking.expected_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -245,7 +254,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 {booking.current_status === 'pending' && (
                   <TouchableOpacity 
                     style={styles.cancelBookingBtn}
-                    onPress={() => handleCancelBooking(booking.id_booking)}
+                    onPress={() => handleCancelBooking(booking)}
                   >
                     <Ionicons name="trash-outline" size={20} color="#ff4757" />
                   </TouchableOpacity>

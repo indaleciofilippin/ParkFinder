@@ -41,3 +41,19 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
   isErrorWithCode: jest.fn(() => false),
 }));
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Ionicons: (props) => React.createElement(Text, { ...props }, 'Ionicons-mock'),
+  };
+});
+
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    hostUri: '192.168.1.100:8081',
+  },
+  manifest: {},
+  manifest2: {},
+}), { virtual: true });

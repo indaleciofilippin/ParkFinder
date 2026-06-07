@@ -48,6 +48,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
   const [autoSync, setAutoSync] = useState(true);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string | null>(null);
   const [scanningPlate, setScanningPlate] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(Platform.OS === 'web');
 
   // Real-time Camera Scanner states
   const [realtimeCameraActive, setRealtimeCameraActive] = useState(false);
@@ -383,17 +384,23 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
         // Show checkout payment breakdown if applicable
         if (response.action === 'check-out' && response.total_charged != null) {
           const total: number = response.total_charged;
-          const fee = Math.round((total / 1.1) * 0.1 * 100) / 100;
-          const subtotal = Math.round((total - fee) * 100) / 100;
           showAlert(
             'Salida Autorizada',
-            `Subtotal estacionamiento: $${subtotal.toFixed(2)}\nFee de servicio (10%): $${fee.toFixed(2)}\n---\nTotal cobrado: $${total.toFixed(2)}`
+            `Total cobrado automáticamente a la tarjeta vinculada: $${total.toFixed(2)}`
           );
         }
 
         // Open barrier
         setBarrierState('open');
         addLog('[FÍSICO] Motor activado. Abriendo barrera...');
+        
+        // Silently sync the latest event timestamp to prevent the polling interval from triggering a duplicate open
+        bookingApi.getLatestBarrierEvent(selectedParking.id_parking).then(res => {
+          if (res.has_event && res.event) {
+            setLastEventTimestamp(res.event.timestamp);
+          }
+        }).catch(err => console.log('Silencing sync error', err));
+
         animateBarrier(1, () => {
           addLog('[FÍSICO] Barrera totalmente ABIERTA. Vehículo puede pasar.');
 
@@ -551,11 +558,13 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
               <Text style={styles.cameraSectionLabel}>ESCANEO DE PATENTE EN VIVO (IA)</Text>
             </View>
             <View style={styles.cameraContainer}>
-              <CameraView
-                style={StyleSheet.absoluteFillObject}
-                ref={cameraRef}
-                facing="back"
-              />
+              <View style={[StyleSheet.absoluteFillObject, { transform: [{ scaleX: isMirrored ? -1 : 1 }] }]}>
+                <CameraView
+                  style={StyleSheet.absoluteFillObject}
+                  ref={cameraRef}
+                  facing="back"
+                />
+              </View>
               {/* Target guidelines frame */}
               <View style={styles.scannerOverlay}>
                 <View style={styles.scanTargetBox}>
@@ -587,6 +596,28 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                         : "Apunta el recuadro a la patente del vehículo"}
                 </Text>
               </View>
+
+              {/* Controles de la cámara superpuestos */}
+              <View style={styles.cameraControlsOverlay}>
+                <TouchableOpacity 
+                  style={[styles.cameraOverlayBtn, isMirrored && styles.cameraOverlayBtnActive]} 
+                  onPress={() => setIsMirrored(!isMirrored)}
+                >
+                  <Ionicons name="swap-horizontal-outline" size={20} color={isMirrored ? '#fff' : '#00f2fe'} />
+                  <Text style={[styles.cameraOverlayBtnText, isMirrored && styles.cameraOverlayBtnTextActive]}>
+                    Modo Espejo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Overlay de carga para IA */}
+              {isProcessingFrame && (
+                <View style={styles.processingOverlay}>
+                  <ActivityIndicator size="large" color="#00f2fe" />
+                  <Text style={styles.processingOverlayText}>⏳ Conectando con Inteligencia Artificial...</Text>
+                </View>
+              )}
+
             </View>
           </View>
         )}
@@ -1308,5 +1339,49 @@ const styles = StyleSheet.create({
     right: -2,
     borderBottomWidth: 3,
     borderRightWidth: 3,
+  },
+  cameraControlsOverlay: {
+    position: 'absolute',
+    top: 15,
+    left: 15,
+    flexDirection: 'row',
+  },
+  cameraOverlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.5)',
+  },
+  cameraOverlayBtnActive: {
+    backgroundColor: 'rgba(0, 242, 254, 0.3)',
+    borderColor: '#00f2fe',
+  },
+  cameraOverlayBtnText: {
+    color: '#00f2fe',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  cameraOverlayBtnTextActive: {
+    color: '#fff',
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  processingOverlayText: {
+    color: '#00f2fe',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   }
 });

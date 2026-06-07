@@ -135,7 +135,9 @@ export const MapSearchScreen = ({ navigation, route }: any) => {
               longitude: parseFloat(parking.longitude)
             }}
             onPress={(e) => {
-              e.stopPropagation();
+              if (e && typeof e.stopPropagation === 'function') {
+                try { e.stopPropagation(); } catch(err) {}
+              }
               setSelectedParking(parking);
               setRegion({
                 latitude: parseFloat(parking.latitude) - 0.003,
@@ -168,7 +170,7 @@ export const MapSearchScreen = ({ navigation, route }: any) => {
       <TouchableOpacity 
         style={[
           styles.locationButton, 
-          selectedParking ? { bottom: 270 } : { bottom: 40 }
+          selectedParking ? { bottom: Platform.OS === 'ios' ? 360 : 340 } : { bottom: Platform.OS === 'ios' ? 40 : 20 }
         ]} 
         onPress={centerOnUser}
       >
@@ -294,8 +296,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   map: {
-    width: width,
-    height: height,
+    ...StyleSheet.absoluteFillObject,
+    ...(Platform.OS === 'web' ? { zIndex: -1 } as any : {}),
   },
   headerArea: {
     position: 'absolute',

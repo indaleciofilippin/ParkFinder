@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { userApi, vehicleApi, parkingApi } from '../../services/api';
 import { i18n } from '../../i18n';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -81,9 +82,9 @@ export const ProfileScreen = ({ navigation }: any) => {
         phone: phone,
       });
       setUser(updatedUser);
-      Alert.alert(i18n.t('profile.title'), i18n.t('profile.success_update'));
+      CustomAlert.alert(i18n.t('profile.title'), i18n.t('profile.success_update'));
     } catch (error: any) {
-      Alert.alert('Error', error.message || i18n.t('profile.error_update'));
+      CustomAlert.alert('Error', error.message || i18n.t('profile.error_update'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
   const handleAddVehicle = async () => {
     if (!newPlate || !newModel) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      CustomAlert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
 
@@ -99,7 +100,7 @@ export const ProfileScreen = ({ navigation }: any) => {
     const formattedPlate = newPlate.toUpperCase().replace(/\s/g, '');
     
     if (!plateRegex.test(formattedPlate)) {
-      Alert.alert('Error', i18n.t('profile.vehicles.error_invalid_format'));
+      CustomAlert.alert('Error', i18n.t('profile.vehicles.error_invalid_format'));
       return;
     }
 
@@ -114,16 +115,16 @@ export const ProfileScreen = ({ navigation }: any) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setIsAddingVehicle(false);
       fetchVehicles();
-      Alert.alert(i18n.t('profile.vehicles.title'), i18n.t('profile.vehicles.success_add'));
+      CustomAlert.alert(i18n.t('profile.vehicles.title'), i18n.t('profile.vehicles.success_add'));
     } catch (error: any) {
-      Alert.alert('Error', error.message || i18n.t('profile.vehicles.error_add'));
+      CustomAlert.alert('Error', error.message || i18n.t('profile.vehicles.error_add'));
     } finally {
       setVehiclesLoading(false);
     }
   };
 
   const handleDeleteVehicle = (id: number) => {
-    Alert.alert(
+    CustomAlert.alert(
       i18n.t('profile.vehicles.title'),
       i18n.t('profile.vehicles.delete_confirm'),
       [
@@ -137,7 +138,7 @@ export const ProfileScreen = ({ navigation }: any) => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               fetchVehicles();
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar el vehículo');
+              CustomAlert.alert('Error', 'No se pudo eliminar el vehículo');
             }
           }
         }

@@ -66,6 +66,12 @@ export const useSocialAuth = () => {
   };
 
   const signInWithGoogle = async () => {
+    // Si estamos en entorno web, forzamos usar el AuthSession de Expo en lugar del módulo nativo
+    if (Platform.OS === 'web') {
+      promptAsync();
+      return;
+    }
+
     // Si tenemos el módulo nativo cargado y no estamos en entorno de test, intentamos usar Google Sign In Nativo
     if (GoogleSignin && process.env.NODE_ENV !== 'test') {
       setIsGoogleLoading(true);

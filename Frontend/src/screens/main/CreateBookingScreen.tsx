@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { CommonActions } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { vehicleApi, bookingApi } from '../../services/api';
 import { i18n } from '../../i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { formatCurrency } from '../../utils/formatters';
+import { CustomAlert } from '../../utils/CustomAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +21,10 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
   const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddingVehicle, setIsAddingVehicle] = useState(false);
+  const [newPlate, setNewPlate] = useState('');
+  const [newModel, setNewModel] = useState('');
+  const [isVehicleLoading, setIsVehicleLoading] = useState(false);
 
   // Arrival Time state (The only one that matters for the user)
   const [arrivalTime, setArrivalTime] = useState(new Date());
@@ -57,7 +63,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'ERROR') {
-          Alert.alert('Error de Tarjeta', data.error);
+          CustomAlert.alert('Error de Tarjeta', data.error);
         } else if (data.type === 'SUCCESS') {
           const finalToken = data.token || data.raw?.id || data.raw?.token?.id || data.raw?.card?.id || 'rebill_token_placeholder';
           setRebillToken(finalToken);
@@ -94,16 +100,43 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handleQuickAddVehicle = async () => {
+    if (!newPlate || !newModel) {
+      CustomAlert.alert('Error', 'Completa la patente y el modelo del vehículo.');
+      return;
+    }
+    const formattedPlate = newPlate.toUpperCase().replace(/\s/g, '');
+    const plateRegex = /^[A-Z]{3}[0-9]{3}$|^[A-Z]{2}[0-9]{3}[A-Z]{2}$/;
+    if (!plateRegex.test(formattedPlate)) {
+      CustomAlert.alert('Error', 'Formato de patente inválido (ej: AA123BB o ABC123).');
+      return;
+    }
+    setIsVehicleLoading(true);
+    try {
+      const added = await vehicleApi.createVehicle({ license_plate: formattedPlate, model: newModel });
+      setVehicles([...vehicles, added]);
+      setSelectedVehicle(added.id_vehicle);
+      setIsAddingVehicle(false);
+      setNewPlate('');
+      setNewModel('');
+      CustomAlert.alert('Vehículo Agregado', 'Tu vehículo fue guardado y seleccionado para la reserva.');
+    } catch (error: any) {
+      CustomAlert.alert('Error', error.message || 'No se pudo agregar el vehículo.');
+    } finally {
+      setIsVehicleLoading(false);
+    }
+  };
+
   const handleCreateBooking = async () => {
     if (!selectedVehicle || !selectedCategory) {
-      Alert.alert('Error', 'Por favor selecciona un vehículo y categoría');
+      CustomAlert.alert('Error', 'Por favor selecciona un vehículo y categoría');
       return;
     }
 
     const hasSavedCard = savedPaymentInfo?.has_saved_card;
 
     if (!hasSavedCard && !rebillToken) {
-      Alert.alert('Error', 'Por favor ingresa y guarda tu tarjeta en el formulario antes de confirmar.');
+      CustomAlert.alert('Error', 'Por favor ingresa y guarda tu tarjeta en el formulario antes de confirmar.');
       return;
     }
 
@@ -133,14 +166,20 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
         payment_method_id: method,
       });
 
-      Alert.alert(
+      CustomAlert.alert(
         'Reserva Confirmada',
         'Tu lugar está reservado. La barrera se abrirá automáticamente al detectar tu patente.',
-        [{ text: 'Listo', onPress: () => navigation.navigate('Home') }]
+        [{ text: 'Listo', onPress: () => navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            })
+          ) 
+        }]
       );
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || error.message || 'No se pudo realizar la reserva';
-      Alert.alert('Error', errorMsg);
+      CustomAlert.alert('Error', errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -275,25 +314,85 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
               ))}
             </View>
           </View>
+
+          <View style={styles.penaltyWarningBox}>
+            <Ionicons name="warning" size={20} color="#FF3B30" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.penaltyWarningTitle}>¡Atención: Política de Multas!</Text>
+              <Text style={styles.penaltyWarningText}>
+                Si llegas más de 15 minutos tarde, el sistema cancelará la reserva automáticamente y se cobrará una <Text style={{fontWeight: 'bold', color: 'white'}}>multa del 50%</Text> del valor de 1 hora.
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Vehicle Selection */}
-        <Text style={styles.sectionHeader}>Vehículo</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleScroll} contentContainerStyle={{ paddingRight: 40 }}>
-          {vehicles.map((v) => (
-            <TouchableOpacity
-              key={v.id_vehicle}
-              style={[styles.vehicleCard, selectedVehicle === v.id_vehicle && styles.selectedVehicle]}
-              onPress={() => setSelectedVehicle(v.id_vehicle)}
-            >
-              <View style={[styles.vIconContainer, selectedVehicle === v.id_vehicle && { backgroundColor: 'rgba(36, 198, 165, 0.2)' }]}>
-                <Ionicons name="car" size={24} color={selectedVehicle === v.id_vehicle ? theme.colors.primary : 'rgba(255,255,255,0.4)'} />
-              </View>
-              <Text style={styles.vPlate}>{v.license_plate}</Text>
-              <Text style={styles.vModel} numberOfLines={1}>{v.model}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={styles.sectionHeader}>Vehículo</Text>
+          {vehicles.length > 0 && !isAddingVehicle && (
+            <TouchableOpacity onPress={() => setIsAddingVehicle(true)} style={{ marginRight: 20 }}>
+              <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>+ Agregar</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          )}
+        </View>
+
+        {vehicles.length === 0 || isAddingVehicle ? (
+          <View style={styles.glassSection}>
+            <Text style={{ color: 'white', marginBottom: 15, fontWeight: 'bold' }}>
+              {vehicles.length === 0 ? 'No tienes vehículos registrados. Agrega uno para reservar:' : 'Registrar Nuevo Vehículo:'}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', color: 'white', paddingHorizontal: 15, height: 45 }]}
+                placeholder="Patente (Ej: AA123BB)"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={newPlate}
+                onChangeText={setNewPlate}
+                autoCapitalize="characters"
+              />
+              <TextInput
+                style={[styles.input, { flex: 1.5, backgroundColor: 'rgba(255,255,255,0.05)', color: 'white', paddingHorizontal: 15, height: 45 }]}
+                placeholder="Modelo (Ej: VW Golf)"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={newModel}
+                onChangeText={setNewModel}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+              {vehicles.length > 0 && (
+                <TouchableOpacity 
+                  style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }} 
+                  onPress={() => setIsAddingVehicle(false)}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>Cancelar</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity 
+                style={{ flex: 2, backgroundColor: theme.colors.primary, padding: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }} 
+                onPress={handleQuickAddVehicle}
+                disabled={isVehicleLoading}
+              >
+                {isVehicleLoading ? <ActivityIndicator color="#000" /> : <Text style={{ color: '#000', fontWeight: 'bold', textAlign: 'center' }}>Guardar Vehículo</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleScroll} contentContainerStyle={{ paddingRight: 40 }}>
+            {vehicles.map((v) => (
+              <TouchableOpacity
+                key={v.id_vehicle}
+                style={[styles.vehicleCard, selectedVehicle === v.id_vehicle && styles.selectedVehicle]}
+                onPress={() => setSelectedVehicle(v.id_vehicle)}
+              >
+                <View style={[styles.vIconContainer, selectedVehicle === v.id_vehicle && { backgroundColor: 'rgba(36, 198, 165, 0.2)' }]}>
+                  <Ionicons name="car" size={24} color={selectedVehicle === v.id_vehicle ? theme.colors.primary : 'rgba(255,255,255,0.4)'} />
+                </View>
+                <Text style={styles.vPlate}>{v.license_plate}</Text>
+                <Text style={styles.vModel} numberOfLines={1}>{v.model}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Category Selection */}
         <Text style={styles.sectionHeader}>Tipo de lugar</Text>
@@ -534,7 +633,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                       try {
                         const data = JSON.parse(event.nativeEvent.data);
                         if (data.type === 'ERROR') {
-                          Alert.alert('Error de Tarjeta', data.error);
+                          CustomAlert.alert('Error de Tarjeta', data.error);
                         } else if (data.type === 'SUCCESS') {
                           const finalToken = data.token || data.raw?.id || data.raw?.token?.id || data.raw?.card?.id || 'rebill_token_placeholder';
                           setRebillToken(finalToken);
@@ -680,9 +779,30 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   policyText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
+  },
+  penaltyWarningBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.4)',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 15,
+    alignItems: 'flex-start',
+  },
+  penaltyWarningTitle: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  penaltyWarningText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    lineHeight: 18,
   },
   sectionHeader: {
     fontSize: 16,
