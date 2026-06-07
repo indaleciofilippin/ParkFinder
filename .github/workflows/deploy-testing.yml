@@ -214,6 +214,8 @@ jobs:
           wait-on http://localhost:8081 --timeout 120000
 
       - name: Run Cypress E2E
+        env:
+          TS_NODE_SKIP_PROJECT: "true"
         run: |
           cd Frontend
-          npm run test:e2e
+          npx cypress run
