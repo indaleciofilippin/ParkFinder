@@ -368,7 +368,7 @@ export const bookingApi = {
     return response.json();
   },
 
-  scanBarrierPlateImage: async (imageUri: string, isMirrored: boolean = false) => {
+  scanBarrierPlateImage: async (imageUri: string) => {
     const token = await getToken('access_token');
     const headers = new Headers();
     if (token) {
@@ -376,14 +376,20 @@ export const bookingApi = {
     }
     
     const formData = new FormData();
-    formData.append('file', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'plate_capture.jpg',
-    } as any);
 
-    const url = `${API_URL}/bookings/barrier/scan-plate${isMirrored ? '?mirrored=true' : ''}`;
-    const response = await fetch(url, {
+    if (Platform.OS === 'web') {
+      const res = await fetch(imageUri);
+      const blob = await res.blob();
+      formData.append('file', blob, 'plate_capture.jpg');
+    } else {
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'plate_capture.jpg',
+      } as any);
+    }
+
+    const response = await fetch(`${API_URL}/bookings/barrier/scan-plate`, {
       method: 'POST',
       headers,
       body: formData,

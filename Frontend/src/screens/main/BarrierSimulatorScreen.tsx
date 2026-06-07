@@ -135,7 +135,7 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
 
         if (photo && photo.uri) {
           addLog('[LECTOR IA] Analizando fotograma en microservicio de IA...');
-          const response = await bookingApi.scanBarrierPlateImage(photo.uri, isMirrored);
+          const response = await bookingApi.scanBarrierPlateImage(photo.uri);
 
           if (response.success && response.plate) {
             const detectedPlate = response.plate.toUpperCase();

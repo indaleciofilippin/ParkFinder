@@ -243,7 +243,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   <Ionicons name="calendar" size={24} color={theme.colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.bookingTitle}>Reserva #{booking.id_booking}</Text>
+                  <Text style={styles.bookingTitle} numberOfLines={1}>{booking.parking_name || `Reserva #${booking.id_booking}`}</Text>
                   <Text style={styles.bookingDate}>
                     {new Date(booking.expected_start_time).toLocaleDateString()} - {new Date(booking.expected_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>

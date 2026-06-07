@@ -56,6 +56,7 @@ class BookingResponse(BaseModel):
     applied_rate: float
     current_status: str
     license_plate: Optional[str] = None
+    parking_name: Optional[str] = None
     invoice_total: Optional[float] = None
     invoice_status: Optional[str] = None
 
@@ -260,12 +261,11 @@ def reset_barrier_state(id_parking: int):
         raise HTTPException(status_code=500, detail=f"Internal error resetting barrier state: {str(e)}")
 
 @router.post("/barrier/scan-plate")
-def scan_plate(file: UploadFile = File(...), mirrored: bool = False):
+def scan_plate(file: UploadFile = File(...)):
     import os
     import shutil
     import subprocess
     import json
-    import cv2
     
     # Directorio temporal de subidas en el workspace
     temp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../temp_uploads"))
@@ -278,14 +278,6 @@ def scan_plate(file: UploadFile = File(...), mirrored: bool = False):
         # Guardar el archivo temporalmente
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        # Si viene espejado, usar OpenCV para voltearlo horizontalmente
-        if mirrored:
-            print("🔄 [BACKEND] Imagen espejada detectada. Volteando horizontalmente antes de OCR...")
-            img = cv2.imread(temp_file_path)
-            if img is not None:
-                img_flipped = cv2.flip(img, 1)
-                cv2.imwrite(temp_file_path, img_flipped)
             
         # Determinar el ejecutable de Python del entorno virtual
         python_path = os.path.abspath(os.path.join(

@@ -123,7 +123,7 @@ export const MyBookingsScreen = ({ navigation }: any) => {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bookingTitle}>Reserva #{item.id_booking}</Text>
+              <Text style={styles.bookingTitle} numberOfLines={1}>{item.parking_name || `Reserva #${item.id_booking}`}</Text>
               <Text style={styles.parkingName}>Cochera ID: {item.id_parking}</Text>
             </View>
             <View style={[styles.statusChip, { backgroundColor: statusInfo.bg }]}>

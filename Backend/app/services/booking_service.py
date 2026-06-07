@@ -196,18 +196,24 @@ class BookingService:
 
     @staticmethod
     def get_user_bookings(db: Session, id_profile: int) -> List[Booking]:
+        from app.models.parking import Parking
         bookings = db.query(Booking).filter_by(id_profile=id_profile).all()
         for b in bookings:
             v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
             b.license_plate = v.license_plate if v else "Unknown"
+            p = db.query(Parking).filter_by(id_parking=b.id_parking).first()
+            b.parking_name = p.name if p else f"Cochera {b.id_parking}"
         return bookings
 
     @staticmethod
     def get_parking_bookings(db: Session, id_parking: int) -> List[Booking]:
+        from app.models.parking import Parking
         bookings = db.query(Booking).filter_by(id_parking=id_parking).all()
         for b in bookings:
             v = db.query(Vehicle).filter_by(id_vehicle=b.id_vehicle).first()
             b.license_plate = v.license_plate if v else "Unknown"
+            p = db.query(Parking).filter_by(id_parking=b.id_parking).first()
+            b.parking_name = p.name if p else f"Cochera {b.id_parking}"
         return bookings
 
     @staticmethod
