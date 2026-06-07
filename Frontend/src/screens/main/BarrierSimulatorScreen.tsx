@@ -610,6 +610,14 @@ export const BarrierSimulatorScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               </View>
 
+              {/* Overlay de carga para IA */}
+              {isProcessingFrame && (
+                <View style={styles.processingOverlay}>
+                  <ActivityIndicator size="large" color="#00f2fe" />
+                  <Text style={styles.processingOverlayText}>⏳ Conectando con Inteligencia Artificial...</Text>
+                </View>
+              )}
+
             </View>
           </View>
         )}
@@ -1360,5 +1368,20 @@ const styles = StyleSheet.create({
   },
   cameraOverlayBtnTextActive: {
     color: '#fff',
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  processingOverlayText: {
+    color: '#00f2fe',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   }
 });

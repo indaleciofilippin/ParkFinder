@@ -78,7 +78,23 @@ class BookingService:
         # Verificar que el vehículo pertenezca al usuario
         vehicle = db.query(Vehicle).filter_by(id_vehicle=id_vehicle, id_profile=id_profile).first()
         if not vehicle:
-            raise ValueError("Vehicle not found or doesn't belong to the user")
+            raise ValueError("El vehículo seleccionado no existe o no te pertenece")
+
+        # Verificar si existe CUALQUIER reserva que se solape y tenga la misma patente física (incluso de otro usuario)
+        from sqlalchemy import func
+        clean_plate_to_book = vehicle.license_plate.replace("-", "").replace(" ", "").upper()
+        
+        overlapping_plate = db.query(Booking).join(Vehicle, Booking.id_vehicle == Vehicle.id_vehicle).filter(
+            func.replace(func.replace(Vehicle.license_plate, '-', ''), ' ', '').ilike(clean_plate_to_book),
+            Booking.current_status.in_(["pending", "active"]),
+            and_(
+                Booking.expected_start_time < end_time,
+                Booking.expected_end_time > start_time
+            )
+        ).first()
+
+        if overlapping_plate:
+            raise ValueError("Este vehículo ya tiene una reserva en este horario (posiblemente realizada por otra cuenta que también tiene registrada esta patente).")
 
         try:
             # 2. Control de Concurrencia (Locking)
