@@ -120,6 +120,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      backend_url: ${{ steps.backend-url.outputs.url }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -172,3 +174,46 @@ jobs:
             --concurrency 50 \
             --set-env-vars "TESTING=,ANPR_API_URL=${{ steps.anpr-url.outputs.url }},REBILL_API_KEY=${{ secrets.REBILL_API_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},ALGORITHM=${{ secrets.ALGORITHM || 'HS256' }}" \
             --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Get Backend URL
+        id: backend-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.BACKEND_IMAGE_NAME }} --platform managed --region ${{ env.GCP_REGION }} --format 'value(status.url)' --project ${{ secrets.GCP_PROJECT_ID }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+  e2e-testing:
+    name: Run E2E Integration Tests (Post-Deploy)
+    needs: deploy-testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './Frontend/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd Frontend
+          npm install --legacy-peer-deps
+
+      - name: Install wait-on
+        run: npm install -g wait-on
+
+      - name: Start Frontend in background
+        env:
+          EXPO_PUBLIC_API_URL: "${{ needs.deploy-testing.outputs.backend_url }}/api/v1"
+        run: |
+          cd Frontend
+          npm run web &
+          wait-on http://localhost:8081 --timeout 120000
+
+      - name: Run Cypress E2E
+        run: |
+          cd Frontend
+          npm run test:e2e
