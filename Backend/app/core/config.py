@@ -28,7 +28,7 @@ if not os.getenv("TESTING"):
             connection.execute(text("CREATE SCHEMA IF NOT EXISTS parkfinder"))
             connection.execute(text("SET search_path TO parkfinder"))
 
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Migración manual para parking (ubicación)
         try:
             connection.execute(text("ALTER TABLE parking ADD COLUMN IF NOT EXISTS address VARCHAR(200)"))
@@ -59,8 +59,6 @@ if not os.getenv("TESTING"):
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS vehicle_active_license_plate_idx ON vehicle (license_plate) WHERE (is_active = True)"))
         except Exception:
             pass
-            
-        connection.commit()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

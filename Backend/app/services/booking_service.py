@@ -405,15 +405,18 @@ class BookingService:
         # 1. Normalize plate
         clean_plate = license_plate.replace("-", "").replace(" ", "").upper()
         
-        # 2. Get active vehicle matching this plate
+        # 2. Get active vehicles matching this plate
         # First, try a super fast exact match
         from sqlalchemy import func
-        vehicle = db.query(Vehicle).filter(
+        vehicles = db.query(Vehicle).filter(
             func.replace(func.replace(Vehicle.license_plate, '-', ''), ' ', '').ilike(clean_plate),
             Vehicle.is_active == True
-        ).first()
+        ).all()
         
-        if not vehicle:
+        vehicle_ids = [v.id_vehicle for v in vehicles]
+        vehicle = None
+        
+        if not vehicles:
             # Fuzzy match fallback: search ONLY among vehicles that have active/pending reservations at this specific parking space!
             # This completely eliminates the risk of false positives or global database mismatches.
             active_or_pending_bookings = db.query(Booking).filter(
@@ -444,11 +447,13 @@ class BookingService:
                 # We only auto-resolve if there is a unique best match to avoid ambiguous collisions
                 if len(best_matches) == 1 and min_distance <= 2:
                     vehicle = best_matches[0]
+                    vehicles = [vehicle]
+                    vehicle_ids = [vehicle.id_vehicle]
                     print(f"🔍 [IA FUZZY MATCH SEGURO] Patente detectada '{clean_plate}' corregida a '{vehicle.license_plate}' de reserva activa/pendiente en esta cochera (Distancia: {min_distance})")
                 elif len(best_matches) > 1 and min_distance <= 2:
                     print(f"⚠️ [IA SECURITY COLLISION] Conflicto de patentes difusas en la misma cochera: {[v.license_plate for v in best_matches]}. No se puede auto-autorizar por seguridad.")
         
-        if not vehicle:
+        if not vehicles:
             print(f"❌ [SECURITY DENIED] Intento de acceso de vehículo NO REGISTRADO: '{clean_plate}'")
             return {
                 "status": "denied",
@@ -458,12 +463,13 @@ class BookingService:
 
         # 3. Look for active booking first (for check-out)
         active_booking = db.query(Booking).filter(
-            Booking.id_vehicle == vehicle.id_vehicle,
+            Booking.id_vehicle.in_(vehicle_ids),
             Booking.id_parking == id_parking,
             Booking.current_status == "active"
         ).first()
 
         if active_booking:
+            vehicle = db.query(Vehicle).filter_by(id_vehicle=active_booking.id_vehicle).first()
             # CHECK-OUT!
             active_booking.current_status = "completed"
             
@@ -609,12 +615,22 @@ class BookingService:
                 "payment_status": payment_status
             }
 
-        # 4. If no active booking, look for a pending booking (for check-in)
+        # 4. If no active booking, look for pending booking (for check-in)
         pending_booking = db.query(Booking).filter(
-            Booking.id_vehicle == vehicle.id_vehicle,
+            Booking.id_vehicle.in_(vehicle_ids),
             Booking.id_parking == id_parking,
             Booking.current_status == "pending"
-        ).order_by(Booking.expected_start_time.asc()).first()
+        ).first()
+
+        if not pending_booking:
+            print(f"❌ [DENIED] Vehículo '{clean_plate}' sin reservas válidas para esta cochera.")
+            return {
+                "status": "denied",
+                "action": "none",
+                "message": f"Vehículo registrado, pero no tienes reservas pendientes ni activas para la cochera '{id_parking}'."
+            }
+            
+        vehicle = db.query(Vehicle).filter_by(id_vehicle=pending_booking.id_vehicle).first()
 
         if pending_booking:
             # CHECK-IN TIME WINDOW VALIDATION
