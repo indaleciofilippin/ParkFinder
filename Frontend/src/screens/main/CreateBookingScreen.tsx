@@ -522,7 +522,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                               header, .rebill-header, .rebill-logo-container { display: none !important; }
                               .rebill-select-menu, [role="listbox"] { z-index: 2147483647 !important; background-color: #1E2330 !important; }
                               [role="option"] { background-color: #1E2330 !important; color: #FFFFFF !important; }
-                              input, select, .rebill-input { color: #FFFFFF !important; }
+                              input, select, .rebill-input { color: #000000 !important; }
                             '
                           ></rebill-save-card>
                         </div>
@@ -600,7 +600,7 @@ export const CreateBookingScreen = ({ navigation, route }: any) => {
                               }
                               [class*="country"] { background-color: #1E2330 !important; }
                               [class*="country"] * { color: #FFFFFF !important; }
-                              input, select, .rebill-input { color: #FFFFFF !important; font-weight: 500 !important; }
+                              input, select, .rebill-input { color: #000000 !important; font-weight: 500 !important; }
                             '
                           ></rebill-save-card>
                           <div id="fallback-msg"></div>
